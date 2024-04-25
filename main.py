@@ -1,154 +1,173 @@
-import json
-
-from flask import Flask, request, render_template, jsonify
+import time
+from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for
 from io import StringIO
 from contextlib import redirect_stdout
 import webview
 import os
 import logging
 import subprocess
+import atexit
 import tempfile
-from datetime import datetime
 
-
-# flask
+# Flask, logging ######################################################################################################
 app = Flask(__name__)
-
-# logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# tools - concat
-def concat(source_1, source_2, destination):
+# Temporary directory & misc ##########################################################################################
+temp_dir = tempfile.TemporaryDirectory()
+print(f"Temporary directory created at {temp_dir.name}")
+def cleanup_temp_dir():
+    for filename in os.listdir(temp_dir.name):
+        file_path = os.path.join(temp_dir.name, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    logger.info("Temporary directory contents cleared")
+atexit.register(cleanup_temp_dir)
 
-    # creates temporary directory for temporary fires
+def close_window(*args, **kwargs):
+    # Close the pywebview window
+    webview.windows[0].destroy()
+
+# Undo redo ###########################################################################################################
+undo_stack = []
+redo_stack = []
+
+def push_current_state_to_undo(video_path):
+    global undo_stack
+    undo_stack.append(video_path)
+    logger.info(f"State pushed to undo stack: {video_path}")
+
+def push_current_state_to_redo(video_path):
+    global redo_stack
+    redo_stack.append(video_path)
+    logger.info(f"State pushed to redo stack: {video_path}")
+
+
+# FFMPEG tools ########################################################################################################
+def concat(source_1, source_2, destination):
     with tempfile.TemporaryDirectory() as tmp_dir:
         temp_txt_path = tempfile.NamedTemporaryFile(mode='w', dir=tmp_dir, delete=False).name
-
-        # lists both files to merge in txt, ffmpeg concat requirement
         with open(temp_txt_path, 'w') as temp_txt:
             temp_txt.write(f"file '{source_1}'\n")
             temp_txt.write(f"file '{source_2}'\n")
-
-        # merges files
-        command = ["ffmpeg", "-y", "-safe", "0", "-f", "concat", "-i", f"concat:{temp_txt_path}", "-c", "copy", destination, "-loglevel", "error"]
+        command = ["ffmpeg", "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
         subprocess.run(command)
 
-# tools - trimming
 def trim(source, a, b, destination):
-
     # hotfix
     if a == "00:00.000":
         a = "00:00.001"
     if b == "00:00.000":
         b = "00:00.001"
 
-    # creates temporary directory for temporary fires
+    logger.info(f"Processing video: ({source}, {a}, {b}, {destination})")
     with tempfile.TemporaryDirectory() as tmp_dir:
         temp_a_path = tempfile.NamedTemporaryFile(suffix='.mp4', dir=tmp_dir, delete=False).name
         temp_b_path = tempfile.NamedTemporaryFile(suffix='.mp4', dir=tmp_dir, delete=False).name
-
-        # clips from start to point A
         command = ["ffmpeg", "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel", "error"]
         subprocess.run(command)
-
-        # clips from point B to the end
         command = ["ffmpeg", "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
         subprocess.run(command)
-
-        # concats both videos
         concat(temp_a_path, temp_b_path, destination)
 
-# variables
-directory = "static/main0.mp4"
-current_edit = 0
+def metadata(video_path):
+    command = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode == 0:
+        width, height, fps = result.stdout.split()
+        # Convert fps from fraction to integer
+        num, den = map(int, fps.split('/'))
+        fps = num / den if den != 0 else num
+        logger.info(f"tools - metadata: {width}x{height} @ {fps} FPS")
+        return width, height, fps
+    else:
+        logger.error("Failed to extract video metadata: " + result.stderr)
+        return "Unknown", "Unknown", "Unknown"
 
+# Routes ##############################################################################################################
 @app.route('/')
 def home():
     return render_template("index.html")
 
+@app.route('/undo', methods=['POST'])
+def handle_undo():
+    global undo_stack
+    if undo_stack:
+        last_state = undo_stack.pop()
+        push_current_state_to_redo(last_state)
+        logger.info(f"Undo: reverted to {last_state}")
+        video_path = f"/video/{os.path.basename(last_state)}"
+        return jsonify({'success': True, 'message': f"Reverted to {last_state}", 'video_path': video_path})
+    else:
+        logger.info("Undo stack is empty")
+        return jsonify({'success': False, 'error': 'No more actions to undo'})
+
+@app.route('/redo', methods=['POST'])
+def handle_redo():
+    global redo_stack, undo_stack
+    if redo_stack:
+        last_state = redo_stack.pop()
+        push_current_state_to_undo(last_state)
+        logger.info(f"Redo: restored {last_state}")
+        video_path = f"/video/{os.path.basename(last_state)}"
+        return jsonify({'success': True, 'message': f"Restored {last_state}", 'video_path': video_path})
+    else:
+        logger.info("Redo stack is empty")
+        return jsonify({'success': False, 'error': 'No more actions to redo'})
+
+@app.route('/cleanup')
+def cleanup_and_home():
+    cleanup_temp_dir()
+    return redirect(url_for('home'))
+
 @app.route('/editor', methods=['GET', 'POST'])
 def editor():
-
+    directory = os.path.join(temp_dir.name, "main.mp4")
     if request.method == 'POST':
         if 'video_file' in request.files:
-            video = request.files['video_file']
-            video.save(directory)
+            vid = request.files['video_file']
+            vid.save(directory)
+            timestamp = int(time.time())
+            video_path = f"/video/main.mp4?v={timestamp}"
+            width, height, fps = metadata(directory)
             logger.info("Video saved at: %s", directory)
-            return render_template("editor.html", video_path=directory)
+            return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps)
         else:
-            logger.info("logging that else was triggered")
+            logger.info("No file received")
             return jsonify({'error': 'No file received'})
-    return render_template("editor.html", video_path=directory)
-
+    timestamp = int(time.time())
+    video_path = f"/video/main.mp4?v={timestamp}"
+    width, height, fps = metadata(directory)
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps)
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
-    # this is ugly
-    global current_edit
-    current_edit += 1
-
-    # get the data
     data = request.get_json()
-    source = data.get("video")
     anchor1 = data.get("anchor1")
     anchor2 = data.get("anchor2")
+    video_filename = data.get("video").split('/')[-1]  # Extract filename from path
+    base_filename = video_filename.rsplit('.', 1)[0]  # Remove extension
+    timestamp = int(time.time())
+    source_to_trim = os.path.join(temp_dir.name, f"{base_filename}.mp4")
+    output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
+    output_from_trim = os.path.join(temp_dir.name, f"{output_name_without_digits}{timestamp}.mp4")
+    if not os.path.exists(source_to_trim):
+        return jsonify({'error': 'Source video does not exist'})
+    push_current_state_to_undo(source_to_trim)
+    trim(source_to_trim, anchor1, anchor2, output_from_trim)
+    response_data = {"output": "/video/" + os.path.basename(output_from_trim)}
+    return jsonify(response_data)
 
-    # trim the video
-    trimsrc = os.getcwd().replace("\\", "/")
-    main_video_path = f"static/main{current_edit}.mp4"
-    main_last_video_path = f"static/main_last.mp4"
-    temp_main_video_path = f"static/temp_main.mp4"
-    trim(trimsrc + "/" + source, anchor1, anchor2, temp_main_video_path)
-
-    # check if main_last.mp4 exists and delete it if it does
-    if os.path.exists(main_last_video_path):
-        os.remove(main_last_video_path)
-
-    # rename existing main video to main_last if it exists
-    if os.path.exists(main_video_path):
-        os.rename(main_video_path, main_last_video_path)
-    elif os.path.exists(directory):
-        os.rename(directory, main_last_video_path)
-    elif os.path.exists(f"static/main{current_edit-1}.mp4"):
-        os.rename(f"static/main{current_edit-1}.mp4", main_last_video_path)
-
-    # Rename temporary main video to main
-    os.rename(temp_main_video_path, main_video_path)
-
-    # Prepare the response object
-    response_data = {"output": "/" + main_video_path}
-
-    # Convert the response object to JSON
-    return json.dumps(response_data)
-
-@app.route("/swap_files", methods=["POST"])
-def swap_files():
-    # logic to swap file names
-    main_video_path = f"static/main{current_edit}.mp4"
-    main_last_video_path = f"static/main_last.mp4"
-    temp_main_video_path = "static/temp_main.mp4"
-
-    if os.path.exists(main_video_path) and os.path.exists(main_last_video_path):
-        os.rename(main_video_path, temp_main_video_path)
-        os.rename(main_last_video_path, main_video_path)
-        os.rename(temp_main_video_path, main_last_video_path)
-
-        logger.info("Files swapped successfully")
-        response_data = {"output": "/" + main_video_path}
-        return json.dumps(response_data)
-
-    else:
-        logger.info("Error: Files not found")
-        response_data = {"output": "/" + main_video_path}
-        return json.dumps(response_data)
-
+@app.route('/video/<filename>')
+def video(filename):
+    cache_buster = request.args.get('v', '')
+    return send_from_directory(temp_dir.name, filename)
 
 if __name__ == '__main__':
     stream = StringIO()
     with redirect_stdout(stream):
-        window = webview.create_window('Valorant 2023.12.19 - 22.27.48.02.DVR - nanocut', app,
-                                       width=800, height=700, frameless=False, easy_drag=False)
+        exit_api = type('API', (object,), {'close_window': close_window})
+        exit_api_instance = exit_api()
+        window = webview.create_window('katcut', app, width=800, height=700, frameless=False, easy_drag=False, js_api=exit_api_instance)
         webview.start(debug=True)
-
-

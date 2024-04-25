@@ -135,7 +135,7 @@ body {
     z-index: 1; 
     height: 38px; 
     width: 2px; 
-    background-color: var(--yel); 
+    background-color: var(--yel);
 	pointer-events: none;
 }
 
@@ -195,4 +195,18 @@ body {
     height: auto;
     position: relative;
     z-index: 1;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    z-index: 2;
 }

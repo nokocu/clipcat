@@ -2,7 +2,8 @@ var video = document.getElementById("videoToClip");
 var playButton = document.getElementById("B2");
 var backwardButton = document.getElementById("B1");
 var forwardButton = document.getElementById("B3");
-var framerate = 60;
+var framerateElement = document.getElementById('infoFPS');
+var framerate = parseFloat(document.getElementById('infoFPS').textContent || document.getElementById('infoFPS').value);
 
 // Button playpause
 function playPause() {
@@ -28,8 +29,8 @@ var totalTimeDisplay = document.getElementById("totalTime");
 
 // Timestamp - Realtime refresh function
 function updateVideoTime() {
-    var currentTime = formatTime(video.currentTime * 1000); // Konwersja sekund na milisekundy
-    var totalTime = isNaN(video.duration) ? "00:00.000" : formatTime(video.duration * 1000); // Konwersja sekund na milisekundy
+    var currentTime = formatTime(video.currentTime * 1000);
+    var totalTime = isNaN(video.duration) ? "00:00.000" : formatTime(video.duration * 1000);
 
     currentTimeDisplay.textContent = currentTime;
     totalTimeDisplay.textContent = totalTime;
@@ -60,64 +61,28 @@ function pad3(value) {
 // Timestamp - init
 updateVideoTime();
 
-// Frame skip 
+// Frame skip
 function skip(value) {
-    video.currentTime += 1 / 60 * value;
+    if (framerate !== 0 && isFinite(framerate) && isFinite(value)) {
+        video.currentTime += 1 / framerate * value;
+    } else {
+        console.error("Invalid or zero framerate: ", framerate);
+    }
 }
 
-// Keybinds
-document.addEventListener('keydown', function(event) {
-    switch(event.key) {
-        case '1':
-            document.getElementById("A1").click();
-            break;
-        case '2':
-            document.getElementById("A2").click();
-            break;
-        case 'c':
-        case 'C':
-        case 'Delete':
-            document.getElementById("A3").click();
-            break;
-        case 'a':
-        case 'ArrowLeft':
-            document.getElementById("B1").click();
-            break;
-        case ' ':
-        case 'Enter':
-            document.getElementById("B2").click();
-            break;
-        case 'd':
-        case 'ArrowRight':
-            document.getElementById("B3").click();
-            break;
-        case 'v':
-        case 'V':
-            document.getElementById("C1").click();
-            break;
-        case 'h':
-        case 'H':
-            document.getElementById("C2").click();
-            break;
-        case 's':
-        case 'S':
-            if (event.ctrlKey) {
-                document.getElementById("C3").click();
-            }
-            break;
-    }
-});
 
 // Volume
 var volumeSlider = document.getElementById("volumeSlider");
 var volumeSliderContainer = document.getElementById("volumeSliderContainer");
 var c1Button = document.getElementById("C1");
-var isHovering = false
+var isHovering = false;
 
 // Volume
 c1Button.addEventListener("mouseenter", function() {
     volumeSliderContainer.style.display = "block";
 });
+
+// Volume
 c1Button.addEventListener("mouseleave", function() {
     setTimeout(function() {
         if (!isHovering) {
@@ -125,17 +90,23 @@ c1Button.addEventListener("mouseleave", function() {
         }
     }, 80);
 });
+
+// Volume
 volumeSliderContainer.addEventListener("mouseenter", function() {
     isHovering = true;
 });
+
+// Volume
 volumeSliderContainer.addEventListener("mouseleave", function() {
     isHovering = false;
     setTimeout(function() {
         if (!c1Button.matches(":hover")) {
             volumeSliderContainer.style.display = "none";
         }
-    }, 80);
+    }, 80); // Oczekiwanie na zakończenie przełączania między przyciskiem a suwakiem
 });
+
+// Volume
 volumeSlider.addEventListener("input", function() {
     video.volume = volumeSlider.value;
 });
@@ -151,31 +122,17 @@ function updateVideoTimeFromSlider() {
         console.error("Invalid video time:", newTime);
     }
 }
+// VideoSlider
 function updateSlider() {
     var percent = (video.currentTime / video.duration) * 100;
     videoSlider.value = percent;
 }
 
+// VideoSlider
 videoSlider.addEventListener('input', updateVideoTimeFromSlider);
 
+// VideoSlider
 video.addEventListener('timeupdate', updateSlider);
-
-// Resolution and FPS
-video.addEventListener('loadedmetadata', function() {
-    var resolution = {
-        width: video.videoWidth,
-        height: video.videoHeight
-    };
-
-    var frames = video.webkitDecodedFrameCount;
-
-    var duration = video.duration;
-
-    var fps = Math.round(frames / duration);
-
-    document.getElementById('infoRez').textContent = resolution.width + 'x' + resolution.height;
-    document.getElementById('infoFPS').textContent = frames;
-});
 
 
 // AB
@@ -194,13 +151,12 @@ document.getElementById("A1").addEventListener("click", function() {
     pointA.style.display = "inline";
     var percentA = parseFloat(getComputedStyle(videoSlider).getPropertyValue("--pointA-percent")) || 0;
     pointA.style.left = percentA * 100 + "%";
-    
+
 });
 
 // B
 document.getElementById("A2").addEventListener("click", function() {
 
-    // B
     var currentTime = formatTime(video.currentTime * 1000);
     document.getElementById("anchor2").textContent = currentTime;
     var videoSliderValue = videoSlider.value;
@@ -215,84 +171,133 @@ document.getElementById("A2").addEventListener("click", function() {
 
 // cut - button
 document.getElementById("A3").addEventListener("click", function() {
-
     var anchor1Text = document.getElementById("anchor1").innerText;
     var anchor2Text = document.getElementById("anchor2").innerText;
-
-    // get the current video source from the video element
     var videoSource = document.getElementById("videoToClip").currentSrc;
-
-    // convert absolute URL to relative URL
     var baseUrl = window.location.origin;
     var relativeVideoSource = videoSource.substring(baseUrl.length);
 
-    // cut - create a payload object with the data
     var data = {
         anchor1: anchor1Text,
         anchor2: anchor2Text,
         video: relativeVideoSource
     };
 
-    // cut - send an AJAX request to Python backend
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "process_video", true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send(JSON.stringify(data));
-
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-            var response = JSON.parse(xhr.responseText);
-            var video = document.getElementById("videoToClip");
-            var videoSlider = document.getElementById("videoSlider");
-
-            // reset the video element
-            video.pause();
-            video.src = response.output
-
-            // remove styles
-            videoSlider.removeAttribute("style");
-            document.getElementById("pointA").style.display = "none";
-            document.getElementById("pointB").style.display = "none";
-
-            // set anchor to 00:00.000
-            document.getElementById("anchor1").innerText = "00:00.000";
-            document.getElementById("anchor2").innerText = "00:00.000";
+    fetch("process_video", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(response => {
+        if (response.output) {
+            updateVideoSource(response.output);
+        } else {
+            console.error("Output path is missing in the response");
         }
-    }
+    })
 });
 
-// back - function to swap file names
-function swapFiles() {
-    // back - send request to python backend to swap file names
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "swap_files", true);
-    xhr.send();
 
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-            var response = JSON.parse(xhr.responseText);
-            var video = document.getElementById("videoToClip");
-            var videoSlider = document.getElementById("videoSlider");
-
-            // back - Reset the video element
-            video.pause();
-            video.src = response.output
-
-            // back - Remove styles
-            videoSlider.removeAttribute("style");
-            document.getElementById("pointA").style.display = "none";
-            document.getElementById("pointB").style.display = "none";
-
-            // back - set anchor to 00:00.000
-            document.getElementById("anchor1").innerText = "00:00.000";
-            document.getElementById("anchor2").innerText = "00:00.000";
-            }
+function undoVideoEdit() {
+    fetch('/undo', {
+        method: 'POST'
+    }).then(response => response.json())
+      .then(data => {
+        if (data.success) {
+            console.log('Undo successful:', data.message);
+            updateVideoSource(data.video_path);
+        } else {
+            console.log('Undo failed:', data.error);
         }
+    }).catch(error => console.error('Error:', error));
 }
 
-// keybind
+function redoVideoEdit() {
+    fetch('/redo', {
+        method: 'POST'
+    }).then(response => response.json())
+      .then(data => {
+        if (data.success) {
+            console.log('Redo successful:', data.message);
+            updateVideoSource(data.video_path);
+        } else {
+            console.log('Redo failed:', data.error);
+        }
+    }).catch(error => console.error('Error:', error));
+};
+
+function updateVideoSource(newSource) {
+    var video = document.getElementById("videoToClip");
+    var videoSlider = document.getElementById("videoSlider");
+    video.src = newSource;
+    video.load();
+    videoSlider.removeAttribute("style");
+    document.getElementById("pointA").style.display = "none";
+    document.getElementById("pointB").style.display = "none";
+    document.getElementById("anchor1").innerText = "00:00.000";
+    document.getElementById("anchor2").innerText = "00:00.000";
+}
+
 document.addEventListener('keydown', function(event) {
-    if (event.ctrlKey && event.key === 'z') {
-        swapFiles();
+    if (event.ctrlKey) {
+        switch(event.key) {
+            case 'z':
+                event.preventDefault();
+                undoVideoEdit();
+                break;
+            case 'y':
+                event.preventDefault();
+                redoVideoEdit();
+                break;
+            case 's':
+                document.getElementById("C3").click();
+                break;
+            case 'w': 
+                event.preventDefault();
+                window.location.href = '/cleanup';
+                break;
+        }
+    } else {
+        switch(event.key) {
+            case '1':
+                document.getElementById("A1").click();
+                break;
+            case '2':
+                document.getElementById("A2").click();
+                break;
+            case 'c':
+            case 'C':
+            case 'Delete':
+                document.getElementById("A3").click();
+                break;
+            case 'a':
+            case 'ArrowLeft':
+                document.getElementById("B1").click();
+                break;
+            case ' ':
+            case 'Enter':
+                document.getElementById("B2").click();
+                break;
+            case 'd':
+            case 'ArrowRight':
+                document.getElementById("B3").click();
+                break;
+            case 'v':
+            case 'V':
+                document.getElementById("C1").click();
+                break;
+            case 'h':
+            case 'H':
+                document.getElementById("C2").click();
+                break;
+            case 'Escape':
+                event.preventDefault();
+                window.location.href = '/cleanup';
+                break;
+        }
     }
 });
+

@@ -5,10 +5,12 @@
     <meta name="description" content="">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>katcut</title>
+    <title>Counter-strike 2 2024.04.05 - 23.46.29.04.DVR - katcut</title>
     <link rel="icon" type="image/x-icon" href="static/assets/favicon.ico">
     <link href="/static/css/bootstrap.css" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
+    <link href="https://vjs.zencdn.net/7.11.4/video-js.css" rel="stylesheet" />
+    <script src="https://vjs.zencdn.net/7.11.4/video.js"></script>
 </head>
 
 <body>
@@ -17,10 +19,12 @@
         <div class="position-absolute top-50 start-50 translate-middle">
 
             <div class="video-container mb-3">
-                <video class="video rounded-3" id="videoToClip">
-                    <source src="{{ video_path }}" type="video/mp4">
-                </video>
-                <img class="poster-image rounded-3" src="/static/assets/poster.png">
+                <div class="video-container mb-3">
+                    <video id="videoToClip" class="video-js vjs-default-skin" controls preload="auto" width="640" height="264">
+                        <source src="{{ video_path }}" type="video/mp4">
+                    </video>
+                </div>
+<!--                <img class="poster-image rounded-3" src="/static/assets/poster.png">-->
             </div>
 
 
@@ -67,7 +71,7 @@
                         </div>
 
                         <div class="me-4 mt-2">
-                            <h6 class="text-secondary"><span id="infoRez">NaNxNaN</span> @ <span id="infoFPS">NaN</span></h6>
+                            <h6 class="text-secondary"><span id="infoRez">{{ width }}x{{ height }}</span> @ <span id="infoFPS">{{ fps }}</span></h6>
                         </div>
                     </div>
                 </div>
