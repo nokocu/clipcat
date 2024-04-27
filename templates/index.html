@@ -5,82 +5,67 @@
     <meta name="description" content="">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Counter-strike 2 2024.04.05 - 23.46.29.04.DVR - katcut</title>
     <link rel="icon" type="image/x-icon" href="static/assets/favicon.ico">
-    <link href="/static/css/bootstrap.css" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
 </head>
-
 <body>
-    <div class="position-relative" >
+    <div class="container-all">
 
-        <div class="position-absolute top-50 start-50 translate-middle">
-
-            <div class="video-container mb-3">
-                <img class="poster-image rounded-3 drop_zone" src="/static/assets/poster.png">
-                <div class="overlay">
-                    <h1>Drag your videos here</h1>
-                    <h6 class="index-h6">...or select files manually</h6>
-                    <button onclick="chooseFile()" class="btn btn-index">Browse</button>
-                </div>
-                <input type="file" id="fileInput" style="display: none;" accept="video/*">
-            </div>
-
-
-
-
-            <div class="dark-container logo-bg rounded-3 pt-3">
-                <div class="d-flex">
-                    <input class="video-slider " id="videoSlider" onkeydown="event.preventDefault()" type="range" min="0" value="0"  step="0.01">
-                    <div id="pointA" class="point" style="display: none"></div>
-                    <div id="pointB" class="point" style="display: none"></div>
-                </div>
-
-                <div class="d-flex mb-3 p-3">
-                    <div class="d-block">
-                        <div class="me-4 rounded-3 btn-container-main">
-                            <button id="B2" type="button" class="btn btn-main rounded-0" onclick="playPause()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg></button>
-                            <button id="B1" type="button" class="btn btn-main rounded-0" onclick="skip(-1)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" class="bi bi-arrow-left-short" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5"></path></svg></button>
-                            <button id="B3" type="button" class="btn btn-main rounded-0" onclick="skip(1)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" class="bi bi-arrow-right-short" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4 8a.5.5 0 0 1 .5-.5h5.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H4.5A.5.5 0 0 1 4 8"></path></svg></button>
-                        </div>
-                        <div class="me-4 mt-2">
-                            <h6 class="text-main"><span>Media controls</span></h6>
-                        </div>
-                    </div>
-
-                    <div class="d-block">
-                        <div class="me-4 rounded-3 btn-container-secondary">
-                            <button id="A1" type="button" class="btn btn-secondary rounded-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-1-circle" viewBox="0 0 16 16"><path d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M9.283 4.002V12H7.971V5.338h-.065L6.072 6.656V5.385l1.899-1.383z"></path></svg></button>
-                            <button id="A2" type="button" class="btn btn-secondary rounded-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-2-circle" viewBox="0 0 16 16"><path d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M6.646 6.24v.07H5.375v-.064c0-1.213.879-2.402 2.637-2.402 1.582 0 2.613.949 2.613 2.215 0 1.002-.6 1.667-1.287 2.43l-.096.107-1.974 2.22v.077h3.498V12H5.422v-.832l2.97-3.293c.434-.475.903-1.008.903-1.705 0-.744-.557-1.236-1.313-1.236-.843 0-1.336.615-1.336 1.306"></path></svg></button>
-                            <button id="A3" type="button" class="btn btn-secondary rounded-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle-fill" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"></path></svg></button>
-                        </div>
-                        <div class="me-4 mt-2">
-                            <h6 class="text-secondary"><span>Editing  controls</span></h6>
-                        </div>
-                    </div>
-
-                    <div class="d-block">
-                        <div class="rounded-3 btn-container-secondary">
-                            <div class="volume-container" id="volumeSliderContainer" style="display: none;">
-                                <input class="volume-range rounded-top-3 rounded-left" type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
-                            </div>
-                            <button id="C1" type="button" class="btn btn-secondary rounded-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-volume-up-fill" viewBox="0 0 16 16"><path d="M11.536 14.01A8.47 8.47 0 0 0 14.026 8a8.47 8.47 0 0 0-2.49-6.01l-.708.707A7.48 7.48 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303z"></path><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.48 5.48 0 0 1 11.025 8a5.48 5.48 0 0 1-1.61 3.89z"></path><path d="M8.707 11.182A4.5 4.5 0 0 0 10.025 8a4.5 4.5 0 0 0-1.318-3.182L8 5.525A3.5 3.5 0 0 1 9.025 8 3.5 3.5 0 0 1 8 10.475zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06"></path</svg></button>
-                            <button id="C2" type="button" class="btn btn-secondary rounded-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-question-lg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.475 5.458c-.284 0-.514-.237-.47-.517C4.28 3.24 5.576 2 7.825 2c2.25 0 3.767 1.36 3.767 3.215 0 1.344-.665 2.288-1.79 2.973-1.1.659-1.414 1.118-1.414 2.01v.03a.5.5 0 0 1-.5.5h-.77a.5.5 0 0 1-.5-.495l-.003-.2c-.043-1.221.477-2.001 1.645-2.712 1.03-.632 1.397-1.135 1.397-2.028 0-.979-.758-1.698-1.926-1.698-1.009 0-1.71.529-1.938 1.402-.066.254-.278.461-.54.461h-.777ZM7.496 14c.622 0 1.095-.474 1.095-1.09 0-.618-.473-1.092-1.095-1.092-.606 0-1.087.474-1.087 1.091S6.89 14 7.496 14"></path></svg></button>
-                            <button id="C3" type="button" class="btn btn-secondary rounded-0"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-floppy-fill" viewBox="0 0 16 16"><path d="M0 1.5A1.5 1.5 0 0 1 1.5 0H3v5.5A1.5 1.5 0 0 0 4.5 7h7A1.5 1.5 0 0 0 13 5.5V0h.086a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5H14v-5.5A1.5 1.5 0 0 0 12.5 9h-9A1.5 1.5 0 0 0 2 10.5V16h-.5A1.5 1.5 0 0 1 0 14.5z"></path><path d="M3 16h10v-5.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5zm9-16H4v5.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5zM9 1h2v4H9z"></path></svg></button>
-                        </div>
-
-                        <div class="me-4 mt-2">
-                            <h6 class="text-secondary"><span>Resolution</span> @ <span>FPS</span></h6>
-                        </div>
-                    </div>
-                </div>
+        <div class="container-top">
+            <img class="poster-image rounded-3 drop_zone" src="/static/assets/poster.png">
+            <div class="poster-overlay">
+                <h1>Drag your videos here</h1>
+                <h6 class="index-h6">...or select files manually</h6>
+                <button onclick="chooseFile()" class="btn-index">Browse</button>
+            <input type="file" id="fileInput" style="display: none;" accept="video/*">
             </div>
         </div>
+
+
+        <div class="container-bottom">
+
+            <div class="container-bottom-A">
+                <input class="video-slider " id="videoSlider" onkeydown="event.preventDefault()" type="range" min="0" value="0"  step="0.01">
+                <div id="anchorA" class="anchor" style="display: none"></div>
+                <div id="anchorB" class="anchor" style="display: none"></div>
+            </div>
+
+            <div class="container-bottom-B">
+                <div class="container-bottom-B1">
+                    <div class="container-controls">
+                        <button id="playButton" type="button" class="btn-main" onclick="playPause()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg></button>
+                        <button id="backwardButton" type="button" class="btn-main" onclick="skip(-1)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5"></path></svg></button>
+                        <button id="forwardButton" type="button" class="btn-main" onclick="skip(1)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33"viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4 8a.5.5 0 0 1 .5-.5h5.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H4.5A.5.5 0 0 1 4 8"></path></svg></button>
+                    </div>
+                    <h6 class="text-main"><span id="currentTime">Media controls</span></h6>
+                </div>
+
+                <div class="container-bottom-B1">
+                    <div class="container-controls">
+                        <button id="mediaA" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M9.283 4.002V12H7.971V5.338h-.065L6.072 6.656V5.385l1.899-1.383z"></path></svg></button>
+                        <button id="mediaB" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M6.646 6.24v.07H5.375v-.064c0-1.213.879-2.402 2.637-2.402 1.582 0 2.613.949 2.613 2.215 0 1.002-.6 1.667-1.287 2.43l-.096.107-1.974 2.22v.077h3.498V12H5.422v-.832l2.97-3.293c.434-.475.903-1.008.903-1.705 0-.744-.557-1.236-1.313-1.236-.843 0-1.336.615-1.336 1.306"></path></svg></button>
+                        <button id="mediaProcess" disabled class="btn-secondary" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"></path></svg></button>
+                    </div>
+                    <h6 class="text-secondary"><span id="anchorAValue">Editor controls</span></h6>
+                </div>
+
+                <div class="container-bottom-B1">
+                    <div class="container-controls">
+                        <button id="volumeButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-volume-up-fill" viewBox="0 0 16 16"><path d="M11.536 14.01A8.47 8.47 0 0 0 14.026 8a8.47 8.47 0 0 0-2.49-6.01l-.708.707A7.48 7.48 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303z"></path><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.48 5.48 0 0 1 11.025 8a5.48 5.48 0 0 1-1.61 3.89z"></path><path d="M8.707 11.182A4.5 4.5 0 0 0 10.025 8a4.5 4.5 0 0 0-1.318-3.182L8 5.525A3.5 3.5 0 0 1 9.025 8 3.5 3.5 0 0 1 8 10.475zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06"></path></svg></button>
+                        <button id="hintButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-question-lg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.475 5.458c-.284 0-.514-.237-.47-.517C4.28 3.24 5.576 2 7.825 2c2.25 0 3.767 1.36 3.767 3.215 0 1.344-.665 2.288-1.79 2.973-1.1.659-1.414 1.118-1.414 2.01v.03a.5.5 0 0 1-.5.5h-.77a.5.5 0 0 1-.5-.495l-.003-.2c-.043-1.221.477-2.001 1.645-2.712 1.03-.632 1.397-1.135 1.397-2.028 0-.979-.758-1.698-1.926-1.698-1.009 0-1.71.529-1.938 1.402-.066.254-.278.461-.54.461h-.777ZM7.496 14c.622 0 1.095-.474 1.095-1.09 0-.618-.473-1.092-1.095-1.092-.606 0-1.087.474-1.087 1.091S6.89 14 7.496 14"></path></svg></button>
+                        <button id="saveButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-floppy-fill" viewBox="0 0 16 16"><path d="M0 1.5A1.5 1.5 0 0 1 1.5 0H3v5.5A1.5 1.5 0 0 0 4.5 7h7A1.5 1.5 0 0 0 13 5.5V0h.086a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5H14v-5.5A1.5 1.5 0 0 0 12.5 9h-9A1.5 1.5 0 0 0 2 10.5V16h-.5A1.5 1.5 0 0 1 0 14.5z"></path><path d="M3 16h10v-5.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5zm9-16H4v5.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5zM9 1h2v4H9z"></path></svg></button>
+                    </div>
+                    <h6 class="text-secondary"><span id="infoRez">Resolution</span> @ <span id="infoFPS">FPS</span></h6>
+                </div>
+         
+            </div>
+        </div>
+
+        <div class="volume-container" id="volumeSliderContainer" style="display: none;">
+            <input class="volume-range rounded-top-3 rounded-left" type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+        </div>
+
     </div>
-
     <script src="/static/js/script_home.js"></script>
-
-
-
 </body>
 </html>

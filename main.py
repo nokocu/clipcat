@@ -1,4 +1,5 @@
 import time
+from datetime import timedelta
 from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for
 from io import StringIO
 from contextlib import redirect_stdout
@@ -26,7 +27,6 @@ def cleanup_temp_dir():
 atexit.register(cleanup_temp_dir)
 
 def close_window(*args, **kwargs):
-    # Close the pywebview window
     webview.windows[0].destroy()
 
 # Undo redo ###########################################################################################################
@@ -45,6 +45,7 @@ def push_current_state_to_redo(video_path):
 
 
 # FFMPEG tools ########################################################################################################
+
 def concat(source_1, source_2, destination):
     with tempfile.TemporaryDirectory() as tmp_dir:
         temp_txt_path = tempfile.NamedTemporaryFile(mode='w', dir=tmp_dir, delete=False).name
@@ -54,29 +55,41 @@ def concat(source_1, source_2, destination):
         command = ["ffmpeg", "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
         subprocess.run(command)
 
-def trim(source, a, b, destination):
-    # hotfix
-    if a == "00:00.000":
-        a = "00:00.001"
-    if b == "00:00.000":
-        b = "00:00.001"
 
-    logger.info(f"Processing video: ({source}, {a}, {b}, {destination})")
+def trim(source, a, b, destination, video_length):
     with tempfile.TemporaryDirectory() as tmp_dir:
         temp_a_path = tempfile.NamedTemporaryFile(suffix='.mp4', dir=tmp_dir, delete=False).name
         temp_b_path = tempfile.NamedTemporaryFile(suffix='.mp4', dir=tmp_dir, delete=False).name
-        command = ["ffmpeg", "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel", "error"]
-        subprocess.run(command)
-        command = ["ffmpeg", "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
-        subprocess.run(command)
-        concat(temp_a_path, temp_b_path, destination)
+
+        # edge case prevention
+        if a > b:
+            a, b = b, a
+
+        logger.info(f"Processing video: ({source}, {a}, {b}, {destination})")
+
+        if b == video_length:
+            command = ["ffmpeg", "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y",
+                       "-loglevel", "error"]
+            subprocess.run(command)
+        elif not a == "00:00.000":
+            command = ["ffmpeg", "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel",
+                       "error"]
+            subprocess.run(command)
+            command = ["ffmpeg", "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y",
+                       "-loglevel", "error"]
+            subprocess.run(command)
+            concat(temp_a_path, temp_b_path, destination)
+        elif a == "00:00.000":
+            command = ["ffmpeg", "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y",
+                       "-loglevel", "error"]
+            subprocess.run(command)
+
 
 def metadata(video_path):
     command = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode == 0:
         width, height, fps = result.stdout.split()
-        # Convert fps from fraction to integer
         num, den = map(int, fps.split('/'))
         fps = num / den if den != 0 else num
         logger.info(f"tools - metadata: {width}x{height} @ {fps} FPS")
@@ -84,6 +97,7 @@ def metadata(video_path):
     else:
         logger.error("Failed to extract video metadata: " + result.stderr)
         return "Unknown", "Unknown", "Unknown"
+
 
 # Routes ##############################################################################################################
 @app.route('/')
@@ -146,8 +160,9 @@ def process_video():
     data = request.get_json()
     anchor1 = data.get("anchor1")
     anchor2 = data.get("anchor2")
-    video_filename = data.get("video").split('/')[-1]  # Extract filename from path
-    base_filename = video_filename.rsplit('.', 1)[0]  # Remove extension
+    video_length = data.get("totalTime")
+    video_filename = data.get("video").split('/')[-1]
+    base_filename = video_filename.rsplit('.', 1)[0]
     timestamp = int(time.time())
     source_to_trim = os.path.join(temp_dir.name, f"{base_filename}.mp4")
     output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
@@ -155,7 +170,7 @@ def process_video():
     if not os.path.exists(source_to_trim):
         return jsonify({'error': 'Source video does not exist'})
     push_current_state_to_undo(source_to_trim)
-    trim(source_to_trim, anchor1, anchor2, output_from_trim)
+    trim(source_to_trim, anchor1, anchor2, output_from_trim, video_length)
     response_data = {"output": "/video/" + os.path.basename(output_from_trim)}
     return jsonify(response_data)
 
@@ -164,10 +179,13 @@ def video(filename):
     cache_buster = request.args.get('v', '')
     return send_from_directory(temp_dir.name, filename)
 
+
+# init ################################################################################################################
 if __name__ == '__main__':
     stream = StringIO()
     with redirect_stdout(stream):
         exit_api = type('API', (object,), {'close_window': close_window})
         exit_api_instance = exit_api()
-        window = webview.create_window('katcut', app, width=800, height=700, frameless=False, easy_drag=False, js_api=exit_api_instance)
+        window = webview.create_window('katcut', app, width=800, height=700,
+                                       frameless=False, easy_drag=False, js_api=exit_api_instance)
         webview.start(debug=True)
