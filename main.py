@@ -1,6 +1,5 @@
 import time
-from datetime import timedelta
-from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for
+from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session
 from io import StringIO
 from contextlib import redirect_stdout
 import webview
@@ -9,11 +8,18 @@ import logging
 import subprocess
 import atexit
 import tempfile
+from werkzeug.utils import secure_filename
 
 # Flask, logging ######################################################################################################
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Session cookie security
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Temporary directory & misc ##########################################################################################
 temp_dir = tempfile.TemporaryDirectory()
@@ -27,6 +33,7 @@ def cleanup_temp_dir():
 atexit.register(cleanup_temp_dir)
 
 def close_window(*args, **kwargs):
+    # Close the pywebview window
     webview.windows[0].destroy()
 
 # Undo redo ###########################################################################################################
@@ -130,30 +137,58 @@ def handle_redo():
         logger.info("Redo stack is empty")
         return jsonify({'success': False, 'error': 'No more actions to redo'})
 
-@app.route('/cleanup')
+@app.route('/cleanup', methods=['GET'])
 def cleanup_and_home():
+    session.pop('file_name', None)
     cleanup_temp_dir()
     return redirect(url_for('home'))
 
 @app.route('/editor', methods=['GET', 'POST'])
 def editor():
     directory = os.path.join(temp_dir.name, "main.mp4")
+    max_file_size = 2000 * 1024 * 1024  # max file size (2000mb)
+
     if request.method == 'POST':
-        if 'video_file' in request.files:
-            vid = request.files['video_file']
-            vid.save(directory)
-            timestamp = int(time.time())
-            video_path = f"/video/main.mp4?v={timestamp}"
-            width, height, fps = metadata(directory)
-            logger.info("Video saved at: %s", directory)
-            return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps)
+        if 'video_file' not in request.files:
+            logger.info("No file part")
+            return jsonify({'error': 'No file part'})
+
+        video_file = request.files['video_file']
+
+        if video_file.filename == '':
+            logger.info("No selected file")
+            return jsonify({'error': 'No selected file'})
+
+        if video_file and allowed_file(video_file.filename):
+            # Check file size
+            video_file.seek(0, os.SEEK_END)
+            file_size = video_file.tell()
+            video_file.seek(0)
+
+            if file_size > max_file_size:
+                logger.info("File is too large")
+                return jsonify({'error': 'File is too large'})
+
+            filename = secure_filename(video_file.filename)
+            video_file.save(directory)
+
+            if 'file_name' not in session:
+                session['file_name'] = filename
+            logger.info(f"Video saved at: {directory}, filename: {session['file_name']}")
         else:
-            logger.info("No file received")
-            return jsonify({'error': 'No file received'})
+            return jsonify({'error': 'Invalid file type'})
+
+    file_name = session.get('file_name', 'Default Video')
+
     timestamp = int(time.time())
     video_path = f"/video/main.mp4?v={timestamp}"
     width, height, fps = metadata(directory)
-    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps)
+    logger.info(f"Rendering template with filename: {file_name}")
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in {'mp4', 'avi', 'mov', 'flv'}
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
@@ -179,13 +214,24 @@ def video(filename):
     cache_buster = request.args.get('v', '')
     return send_from_directory(temp_dir.name, filename)
 
+# API class
+class API:
+    def window_minimize(self):
+        webview.windows[0].minimize()
+
+    def window_maximize(self):
+        webview.windows[0].toggle_fullscreen()
+
+    def window_close(self):
+        webview.windows[0].destroy()
+
 
 # init ################################################################################################################
 if __name__ == '__main__':
     stream = StringIO()
     with redirect_stdout(stream):
-        exit_api = type('API', (object,), {'close_window': close_window})
-        exit_api_instance = exit_api()
-        window = webview.create_window('katcut', app, width=800, height=700,
-                                       frameless=False, easy_drag=False, js_api=exit_api_instance)
+        api_instance = API()
+        window = webview.create_window('katcut', app, width=950, height=739,
+                                       frameless=True, easy_drag=False, js_api=api_instance,
+                                       background_color='#33363d')
         webview.start(debug=True)

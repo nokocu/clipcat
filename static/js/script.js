@@ -28,6 +28,9 @@ video.addEventListener('timeupdate', updateSlider);
 document.getElementById("mediaA").addEventListener("click", () => setPoint(anchorA, "anchorAValue"));
 document.getElementById("mediaB").addEventListener("click", () => setPoint(anchorB, "anchorBValue"));
 document.getElementById("mediaProcess").addEventListener("click", processVideo);
+document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
+document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
+document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
 
 // Play/Pause toggle
 function playPause() {
@@ -156,8 +159,6 @@ function updateSlider() {
 function updateProcessVideoButtonState() {
     const anchor1Text = document.getElementById("anchorAValue").textContent;
     const anchor2Text = document.getElementById("anchorBValue").textContent;
-    console.log(anchor1Text)
-    console.log(anchor2Text)
     const processVideoButton = document.getElementById("mediaProcess");
     processVideoButton.disabled = anchor1Text === anchor2Text;
 }
@@ -175,30 +176,32 @@ function updateVideoTimeFromSlider() {
 }
 
 function updateVideoSource(newSource) {
-    video.src = newSource;
-    video.load();
+    const video = document.getElementById('videoToClip');
+    const preloadVideo = document.getElementById('preloadVideo');
 
-    // Reset slider position to 0%
+    // Preload new video source
+    preloadVideo.src = newSource;
+    preloadVideo.load();
+    preloadVideo.oncanplaythrough = function() {
+
+        // Update main video source
+        video.src = newSource;
+        video.load();
+        resetVideoUI();
+    };
+}
+
+function resetVideoUI() {
+    const videoSlider = document.getElementById('videoSlider');
     videoSlider.value = 0;
     videoSlider.style.setProperty('--anchorA-percent', '0');
     videoSlider.style.setProperty('--anchorB-percent', '0');
-
-    // Clear display of points A and B
     document.getElementById("anchorA").style.display = "none";
     document.getElementById("anchorB").style.display = "none";
-
-    // Reset anchor text
     document.getElementById("anchorAValue").innerText = "00:00.000";
     document.getElementById("anchorBValue").innerText = "00:00.000";
-
-    // Wait for video metadata to load before resetting slider max and updating UI
-    video.addEventListener('loadedmetadata', function() {
-        updateSlider(); // Ensure the slider is updated with the correct max value
-        updateProcessVideoButtonState(); // Update the state of the process video button
-
-        // Remove the event listener to prevent it from firing multiple times
-        video.removeEventListener('loadedmetadata', arguments.callee);
-    });
+    updateSlider();
+    updateProcessVideoButtonState();
 }
 
 // Undo video edit
@@ -230,5 +233,12 @@ function redoVideoEdit() {
         })
         .catch(error => console.error('Error:', error));
 }
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('videoToClip');
+    video.volume = 0.1;
+});
+
 // Initialize video time update
 updateVideoTime();
