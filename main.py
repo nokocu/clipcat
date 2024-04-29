@@ -1,5 +1,6 @@
 import time
-from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session
+import time
+from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session, send_file
 from io import StringIO
 from contextlib import redirect_stdout
 import webview
@@ -24,6 +25,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Temporary directory & misc ##########################################################################################
 temp_dir = tempfile.TemporaryDirectory()
 print(f"Temporary directory created at {temp_dir.name}")
+
 def cleanup_temp_dir():
     for filename in os.listdir(temp_dir.name):
         file_path = os.path.join(temp_dir.name, filename)
@@ -33,7 +35,6 @@ def cleanup_temp_dir():
 atexit.register(cleanup_temp_dir)
 
 def close_window(*args, **kwargs):
-    # Close the pywebview window
     webview.windows[0].destroy()
 
 # Undo redo ###########################################################################################################
@@ -105,6 +106,82 @@ def metadata(video_path):
         logger.error("Failed to extract video metadata: " + result.stderr)
         return "Unknown", "Unknown", "Unknown"
 
+def render(src, out, ext, qual, size, res, fps):
+
+    def preset_handler(quality, codec):
+        if codec == 'libsvtav1':
+            presets = [(95, '0'), (90, '1'), (85, '2'), (80, '3'), (75, '4'), (70, '5'), (65, '6'), (60, '7'),
+                       (55, '8'), (50, '9'), (45, '10'), (40, '11'), (0, '12')]
+        elif codec == 'libx264':
+            presets = [(95, 'veryslow'), (85, 'slower'), (75, 'slow'), (65, 'medium'), (55, 'fast'), (45, 'faster'),
+                       (35, 'veryfast'), (0, 'ultrafast')]
+        else:
+            return None
+        for threshold, preset_value in presets:
+            if quality >= threshold:
+                return preset_value
+        return None
+
+    start_time = time.time()
+    logger.info("[render]: starting")
+    cmd = ['ffmpeg', '-y', '-i', src, '-threads', '0']
+    src_path, src_ext = os.path.splitext(src)
+    src_ext = src_ext.lstrip('.')
+    if ext == "copy":
+        logger.info(f"{out=}")
+        logger.info(f"{src_ext=}")
+        out += '.' + src_ext
+    else:
+        out += '.' + ext
+
+    if ext == "copy" and size == "copy" and res == "copy" and fps == "copy":
+        logger.info("[render]: copying")
+        os.system(f'copy "{src}" "{out}"')
+
+    else:
+        if ext != "copy":
+            logger.info("[render]: changing extension")
+            qual = int(qual)
+            if src_ext in ['mp4', 'mkv'] and ext == 'webm':
+                preset = preset_handler(qual, 'libsvtav1')
+                cmd.extend(['-c:v', 'libsvtav1', '-preset', preset, '-c:a', 'libopus', '-b:a', '128k'])
+            elif src_ext == 'webm' and ext in ['mp4', 'mkv']:
+                preset = preset_handler(qual, 'libx264')
+                cmd.extend(['-c:v', 'libx264', '-preset', preset, '-c:a', 'aac', '-b:a', '192k'])
+            elif src_ext == ['mp4', 'mkv'] and ext in ['mp4', 'mkv']:
+                cmd.extend(['-c', 'copy'])
+
+        if size != "copy":
+            logger.info("[render]: changing filesize")
+            size = int(size)
+            cmd = [x for x in cmd if x not in ('-c', 'copy')]
+            duration_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', src]
+            result = subprocess.run(duration_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            duration = float(result.stdout.strip())
+            target_bitrate = (size * 8 * 1024) / duration
+            cmd.extend(['-b:v', f'{target_bitrate:.0f}k', '-bufsize', f'{target_bitrate:.0f}k', '-maxrate', f'{target_bitrate:.0f}k'])
+
+        if res != "copy":
+            cmd = [x for x in cmd if x not in ('-c', 'copy')]
+            logger.info("[render]: changing resolution")
+            cmd.extend(['-s', res])
+
+        if fps != "copy":
+            cmd = [x for x in cmd if x not in ('-c', 'copy')]
+            logger.info("[render]: changing fps")
+            frame_rate_cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'default=noprint_wrappers=1:nokey=1', src]
+            result = subprocess.run(frame_rate_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            current_frame_rate = round(eval(result.stdout.strip()), 3)
+            target_frame_rate = round(float(fps), 3)
+            if target_frame_rate < current_frame_rate:
+                cmd.extend(['-r', fps])
+
+        cmd.append(out)
+        logger.info(f"[render]: executing: ({' '.join(cmd)})")
+        subprocess.run(cmd)
+
+    elapsed_time = time.time() - start_time
+    logger.info(f"[render]: finished in {elapsed_time:.2f} seconds.")
 
 # Routes ##############################################################################################################
 @app.route('/')
@@ -154,7 +231,6 @@ def editor():
             return jsonify({'error': 'No file part'})
 
         video_file = request.files['video_file']
-
         if video_file.filename == '':
             logger.info("No selected file")
             return jsonify({'error': 'No selected file'})
@@ -164,11 +240,9 @@ def editor():
             video_file.seek(0, os.SEEK_END)
             file_size = video_file.tell()
             video_file.seek(0)
-
             if file_size > max_file_size:
                 logger.info("File is too large")
                 return jsonify({'error': 'File is too large'})
-
             filename = secure_filename(video_file.filename)
             video_file.save(directory)
 
@@ -179,7 +253,6 @@ def editor():
             return jsonify({'error': 'Invalid file type'})
 
     file_name = session.get('file_name', 'Default Video')
-
     timestamp = int(time.time())
     video_path = f"/video/main.mp4?v={timestamp}"
     width, height, fps = metadata(directory)
@@ -214,7 +287,28 @@ def video(filename):
     cache_buster = request.args.get('v', '')
     return send_from_directory(temp_dir.name, filename)
 
-# API class
+
+@app.route('/render_video', methods=['POST'])
+def render_video():
+    data = request.get_json()
+    output = data.get("output")
+    extension = data.get("extension")
+    targetsize = data.get("targetsize")
+    resolution = data.get("resolution")
+    framerate = data.get("framerate")
+    quality = data.get("quality")
+
+    video_filename = data.get("source").split('/')[-1].split('?')[0]
+    source = os.path.join(temp_dir.name, f"{video_filename}")
+
+    try:
+        render(src=source, out=output, ext=extension, qual=quality, size=targetsize, res=resolution, fps=framerate)
+        return jsonify({'success': True, 'message': 'Video rendering completed successfully.'})
+    except Exception as e:
+        logger.error(f"Error during video rendering: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# api #################################################################################################################
 class API:
     def window_minimize(self):
         webview.windows[0].minimize()

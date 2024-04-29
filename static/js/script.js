@@ -106,15 +106,20 @@ function processVideo() {
 }
 // Handle keydown events
 function handleKeydown(event) {
-    if (event.ctrlKey) {
-        switch(event.key) {
+    const dialog = document.querySelector('.saveDialog');
+    const overlay = document.querySelector('.overlay');
+    if (event.key === 'Escape' && !dialog.classList.contains('hidden')) {
+        event.preventDefault();
+        hideDialog();
+    } else if (event.ctrlKey) {
+        switch (event.key) {
             case 'z': event.preventDefault(); undoVideoEdit(); break;
             case 'y': event.preventDefault(); redoVideoEdit(); break;
             case 's': document.getElementById("saveButton").click(); break;
             case 'w': event.preventDefault(); window.location.href = '/cleanup'; break;
         }
     } else {
-        switch(event.key) {
+        switch (event.key) {
             case '1': document.getElementById("mediaA").click(); break;
             case '2': document.getElementById("mediaB").click(); break;
             case 'c': case 'C': case 'Delete': document.getElementById("mediaProcess").click(); break;
@@ -122,7 +127,7 @@ function handleKeydown(event) {
             case ' ': case 'Enter': document.getElementById("playButton").click(); break;
             case 'd': case 'ArrowRight': document.getElementById("forwardButton").click(); break;
             case 'h': case 'H': document.getElementById("hintButton").click(); break;
-            case 'Escape': event.preventDefault(); window.location.href = '/cleanup'; break;
+            case 'Escape': window.location.href = '/cleanup'; break;
         }
     }
 }
@@ -165,7 +170,7 @@ function updateProcessVideoButtonState() {
 
 // Update video playback time based on slider input
 function updateVideoTimeFromSlider() {
-    const percent = videoSlider.value / 100;
+    const percent = videoSlider.value / 100; /
     const newTime = percent * video.duration;
 
     if (isFinite(newTime)) {
@@ -234,11 +239,40 @@ function redoVideoEdit() {
         .catch(error => console.error('Error:', error));
 }
 
-
+// volume
 document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('videoToClip');
     video.volume = 0.1;
 });
+
+function renderVideo() {
+    const source = video.currentSrc.substring(window.location.origin.length)
+    const output = document.getElementById("output").value || 'None';
+    const extension = document.getElementById("extension").value || 'copy';
+    const quality = document.getElementById("quality").value || '0';
+    const targetsize = document.getElementById("targetsize").value || 'copy';
+    const resolution = document.getElementById("resolution").value || 'copy';
+    const framerate = document.getElementById("framerate").value || 'copy';
+
+    const data = {
+        source: source,
+        output: output,
+        extension: extension,
+        quality: quality,
+        targetsize: targetsize,
+        resolution: resolution,
+        framerate: framerate,
+    };
+
+    console.log("Sending data to server:", data);
+    fetch("render_video", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    })
+};
 
 // Initialize video time update
 updateVideoTime();
