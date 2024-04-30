@@ -325,7 +325,7 @@ if __name__ == '__main__':
     stream = StringIO()
     with redirect_stdout(stream):
         api_instance = API()
-        window = webview.create_window('katcut', app, width=950, height=739,
+        window = webview.create_window('katcut', app, width=950, height=769,
                                        frameless=True, easy_drag=False, js_api=api_instance,
                                        background_color='#33363d')
         webview.start(debug=True)

@@ -37,25 +37,6 @@ h6, h1, input {
     font-style: normal;
 }
 
-.volume-range {
-	z-index: 4;
-	-webkit-appearance: none;
-	background-color: transparent;
-	position: absolute;
-	height: 40px;
-	width: 80px;
-	transform: rotate(-90deg);
-	top: 50vh;
-	overflow: hidden;
-
-}
-
-.volume-range::-webkit-slider-thumb {
-	-webkit-appearance: none;
-	width: 0;
-	box-shadow: -20rem 0 0 20rem var(--yel);
-}
-
 
 .video-slider {
     position: relative;
@@ -106,6 +87,7 @@ h6, h1, input {
 	width: 43px;
     cursor: pointer;
     transition: background-color 0.3s;
+    position: relative;
 }
 
 .btn-secondary:hover {
@@ -160,7 +142,7 @@ h6, h1, input {
 }
 
 .poster-overlay {
-    position: absolute; /* Changed from relative to absolute */
+    position: absolute;
     top: 3rem;
     left: 0;
     right: 0;
@@ -192,6 +174,7 @@ h6, h1, input {
 	border-radius: 5px;
 	overflow: hidden;
 	background-color: var(--dark);
+	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
 }
 
 .container-bottom-A {
@@ -213,6 +196,7 @@ h6, h1, input {
     display: flex;
     justify-content: left;
 	overflow: hidden;
+	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.1);
 }
 
 .pywebview-drag-region {
@@ -248,7 +232,7 @@ h6, h1, input {
 
 .container-title {
     display: flex;
-    align-items: center; /* Align the icon and text vertically in the center */
+    align-items: center;
 }
 
 .container-all {
@@ -267,9 +251,9 @@ h6, h1, input {
 }
 
 .titlebar-icon {
-    height: 16px;  /* Adjust the size as needed */
-    width: 16px;   /* Adjust the size as needed */
-    margin-right: 10px; /* Space between the icon and the title */
+    height: 16px;
+    width: 16px;
+    margin-right: 10px;
 }
 
 .video {
@@ -285,19 +269,89 @@ h6, h1, input {
     border-radius: 5px;
     overflow: hidden;
     display: flex;
+	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
 }
 
 .input {
+    color: white;
     padding: 0px;
     border: none;
     border-radius: 5px;
-    background-color: var(--dark);
+    background-color: var(--grey);
     height: 37px;
-	width: 42px;
+	width: 20rem;
     cursor: pointer;
     transition: background-color 0.3s;
 }
 
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 9;
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s;
+}
+
+.saveDialog {
+    margin: 10px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    background-color: var(--dark);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: auto;
+    border-radius: 5px;
+    border-color: var(--borderish);
+    border-width: 1px;
+    border-style: solid;
+    animation: fadeIn 0.3s;
+}
+
+
 .hidden {
     display: none;
+}
+
+.text-dialog{
+	font-size: 0.75rem;
+	color: var(--grey);
+}
+
+.volume-range {
+	z-index: 10;
+	-webkit-appearance: none;
+	background-color: var(--dark);
+	position: absolute;
+	height: 21px;
+	width: 81px;
+	transform: rotate(-90deg);
+	overflow: hidden;
+	border-radius:5px;
+	box-shadow: 0px 0px 7px 3px rgba(0, 0, 0, 0.1);
+
+}
+
+.volume-range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 0;
+	box-shadow: -20rem 0 0 20rem var(--yel);
+}
+
+.volume-container {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    width: 80px;
+    height: 40px;
+    transform: translate(-50%, -100%);
 }

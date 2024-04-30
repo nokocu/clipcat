@@ -5,9 +5,6 @@ const backwardButton = document.getElementById("backwardButton");
 const forwardButton = document.getElementById("forwardButton");
 const currentTimeDisplay = document.getElementById("currentTime");
 const totalTimeDisplay = document.getElementById("totalTime");
-const volumeSlider = document.getElementById("volumeSlider");
-const volumeSliderContainer = document.getElementById("volumeSliderContainer");
-const volumeButton = document.getElementById("volumeButton");
 const anchorA = document.getElementById("anchorA");
 const anchorB = document.getElementById("anchorB");
 const videoSlider = document.getElementById("videoSlider");
@@ -18,11 +15,6 @@ const framerate = parseFloat(document.getElementById('infoFPS').textContent || d
 
 // Event listeners
 document.addEventListener('keydown', handleKeydown);
-volumeButton.addEventListener("mouseenter", () => volumeSliderContainer.style.display = "block");
-volumeButton.addEventListener("mouseleave", () => setTimeout(() => { if (!isHovering) volumeSliderContainer.style.display = "none"; }, 80));
-volumeSliderContainer.addEventListener("mouseenter", () => isHovering = true);
-volumeSliderContainer.addEventListener("mouseleave", () => { isHovering = false; if (!volumeButton.matches(":hover")) volumeSliderContainer.style.display = "none"; });
-volumeSlider.addEventListener("input", () => video.volume = volumeSlider.value);
 videoSlider.addEventListener('input', updateVideoTimeFromSlider);
 video.addEventListener('timeupdate', updateSlider);
 document.getElementById("mediaA").addEventListener("click", () => setPoint(anchorA, "anchorAValue"));
@@ -104,14 +96,12 @@ function processVideo() {
         }
     });
 }
+
 // Handle keydown events
 function handleKeydown(event) {
     const dialog = document.querySelector('.saveDialog');
-    const overlay = document.querySelector('.overlay');
-    if (event.key === 'Escape' && !dialog.classList.contains('hidden')) {
-        event.preventDefault();
-        hideDialog();
-    } else if (event.ctrlKey) {
+    if (event.key === 'Escape') { event.preventDefault(); !dialog.classList.contains('hidden') ? hideDialog() : window.location.href = '/cleanup'; }
+    else if (event.ctrlKey) {
         switch (event.key) {
             case 'z': event.preventDefault(); undoVideoEdit(); break;
             case 'y': event.preventDefault(); redoVideoEdit(); break;
@@ -124,10 +114,9 @@ function handleKeydown(event) {
             case '2': document.getElementById("mediaB").click(); break;
             case 'c': case 'C': case 'Delete': document.getElementById("mediaProcess").click(); break;
             case 'a': case 'ArrowLeft': document.getElementById("backwardButton").click(); break;
-            case ' ': case 'Enter': document.getElementById("playButton").click(); break;
             case 'd': case 'ArrowRight': document.getElementById("forwardButton").click(); break;
+            case ' ': case 'Enter': document.getElementById("playButton").click(); break;
             case 'h': case 'H': document.getElementById("hintButton").click(); break;
-            case 'Escape': window.location.href = '/cleanup'; break;
         }
     }
 }
@@ -170,7 +159,7 @@ function updateProcessVideoButtonState() {
 
 // Update video playback time based on slider input
 function updateVideoTimeFromSlider() {
-    const percent = videoSlider.value / 100; /
+    const percent = videoSlider.value / 100;
     const newTime = percent * video.duration;
 
     if (isFinite(newTime)) {
@@ -274,5 +263,66 @@ function renderVideo() {
     })
 };
 
+// Global dialog control functions
+var dialog, overlay;
+
+function showDialog() {
+    dialog.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+}
+
+function hideDialog() {
+    dialog.classList.add('hidden');
+    overlay.classList.add('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var openDialogButton = document.getElementById('openDialog');
+    dialog = document.querySelector('.saveDialog');
+    overlay = document.querySelector('.overlay');
+
+    // Open dialog and overlay
+    if (openDialogButton) {
+        openDialogButton.addEventListener('click', function() {
+            showDialog();
+        });
+    }
+
+    // Close dialog and overlay when clicking on the overlay
+    if (overlay) {
+        overlay.addEventListener('click', function(event) {
+            if (event.target === overlay) {
+                hideDialog();
+            }
+        });
+    }
+});
+
 // Initialize video time update
 updateVideoTime();
+
+// volume slider
+const volumeButton = document.getElementById("volumeButton");
+const volumeSliderContainer = document.getElementById("volumeSliderContainer");
+
+volumeButton.addEventListener("mouseenter", () => {
+    const rect = volumeButton.getBoundingClientRect();
+    volumeSliderContainer.style.display = "block";
+    // Adjust horizontal position to the right by the width of the button
+    volumeSliderContainer.style.left = `${rect.left + 21}px`;
+    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 29 + 14}px`;
+});
+
+volumeButton.addEventListener("mouseleave", () => {
+    setTimeout(() => {
+        if (!isHovering) volumeSliderContainer.style.display = "none";
+    }, 80);
+});
+
+volumeSliderContainer.addEventListener("mouseenter", () => isHovering = true);
+volumeSliderContainer.addEventListener("mouseleave", () => {
+    isHovering = false;
+    if (!volumeButton.matches(":hover")) volumeSliderContainer.style.display = "none";
+});
+
+
