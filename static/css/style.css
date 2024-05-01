@@ -13,6 +13,7 @@ body {
     margin: 0;
     padding: 0;
     background-color: var(--bg);
+    animation: fadeIn 0.3s;
 }
 
 @keyframes fadeIn {
@@ -29,6 +30,9 @@ h6, h1, input {
 	margin: 0rem;
 }
 
+button:focus {
+    outline: none;
+}
 
 @font-face {
     font-family: 'Roboto';
@@ -61,6 +65,16 @@ h6, h1, input {
     z-index: 2; 
 }
 
+.video-slider::-moz-range-thumb {
+    position: relative;
+    -webkit-appearance: none;
+    width: 0px;
+    height: 44px;
+    cursor: pointer;
+    border-right: 2px solid white; 
+    z-index: 2; 
+}
+
 .video-slider:focus {
     outline-width: 0;
 }
@@ -68,16 +82,15 @@ h6, h1, input {
 .video-slider::-webkit-slider-runnable-track {
     position: relative;
     z-index: 1;
-	background: linear-gradient(to right,
-	  transparent calc(min(var(--anchorA-percent),
-	   var(--anchorB-percent)) * 100%),
-	    var(--yel) calc(min(var(--anchorA-percent),
-		 var(--anchorB-percent)) * 100%),
-		  var(--yel) calc(max(var(--anchorA-percent),
-		   var(--anchorB-percent)) * 100%),
-		   transparent calc(max(var(--anchorA-percent),
-			 var(--anchorB-percent)) * 100%));
+	background: linear-gradient(to right, transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%), transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%));
 }
+
+.video-slider::-moz-range-track {
+    position: relative;
+    z-index: 1;
+	background: linear-gradient(to right, transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%), transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%));
+}
+
 
 .btn-secondary {
 	color: white;
@@ -167,14 +180,15 @@ h6, h1, input {
 
 
 .container-bottom {
-	background-image: url(/static/assets/logo.png);
-	background-position: 2rem 92rem;
-	margin-top: 1rem;
-	padding-top: 1rem;
-	border-radius: 5px;
-	overflow: hidden;
-	background-color: var(--dark);
-	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
+    position: relative;
+    background-image: url(/static/assets/logo.png);
+    background-position: 2rem 92rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-radius: 5px;
+    overflow: hidden;
+    background-color: var(--dark);
+    box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
 }
 
 .container-bottom-A {
@@ -211,6 +225,7 @@ h6, h1, input {
     left: 1px;
     right: 1px;
     z-index: 10;
+    overflow: hidden;
 }
 
 .btn-titlebar {
@@ -272,55 +287,20 @@ h6, h1, input {
 	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
 }
 
-.input {
-    color: white;
-    padding: 0px;
-    border: none;
-    border-radius: 5px;
-    background-color: var(--grey);
-    height: 37px;
-	width: 20rem;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
 
 .overlay {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100%;
+    height: 100%;
     background-color: rgba(0, 0, 0, 0.4);
-    z-index: 9;
+    z-index: 20;
     backdrop-filter: blur(5px);
     animation: fadeIn 0.3s;
 }
 
-.saveDialog {
-    margin: 10px;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
-    background-color: var(--dark);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: auto;
-    border-radius: 5px;
-    border-color: var(--borderish);
-    border-width: 1px;
-    border-style: solid;
-    animation: fadeIn 0.3s;
-}
 
-
-.hidden {
-    display: none;
-}
 
 .text-dialog{
 	font-size: 0.75rem;
@@ -354,4 +334,111 @@ h6, h1, input {
     width: 80px;
     height: 40px;
     transform: translate(-50%, -100%);
+}
+
+
+.btn-single-secondary {
+	color: white;
+    background-color: var(--grey);
+    border: none;
+    min-height: 37px;
+	min-width: 43px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    position: relative;
+    border-radius: 5px;
+}
+
+.btn-single-secondary:hover {
+    background-color: var(--yel);
+}
+
+.btn-single-main {
+    background-color: var(--yel);
+    border: none;
+    min-height: 37px;
+	min-width: 43px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    border-radius: 5px;
+}
+
+.btn-single-main:hover {
+    background-color: var(--grey);
+}
+
+
+
+
+.input {
+    text-indent: 10px;
+    margin-left: 10px;
+    color: white;
+    padding: 0px;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--grey);
+    height: 37px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+
+
+input::placeholder {
+    color: rgb(189, 189, 189)
+}
+
+textarea:focus, input:focus{
+    outline: var(--yel) solid 1px;
+}
+
+.input-A { width: 100%; }
+.input-B { width: 100%; }
+.input-C { width: 100%; }
+
+.container-dialog {
+    position: absolute; 
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    background-color: var(--dark);
+    background-image: url(/static/assets/logo.png);
+    background-position: 2rem 92rem;
+    display: flex;
+    justify-content: space-between;
+    width: 100%; 
+    align-items: center;
+    padding: 0rem;
+    animation: fadeIn 0.3s;
+}
+
+.container-dialog-A,
+.container-dialog-B,
+.container-dialog-C {
+    display: flex;
+    flex-wrap: wrap; 
+    justify-content: space-around; 
+    align-items: center; 
+
+}
+
+.container-dialog-A1,
+.container-dialog-B1,
+.container-dialog-C1 {
+    flex: 1 1 auto; 
+    margin: 0.5rem; 
+    display: flex;
+    align-items: center;
+
+}
+
+.container-dialog-A1 { width: 15rem; margin-left: 1.5rem; margin-right: 2.5rem; }
+.container-dialog-B1 { width: 5rem; }
+.container-dialog-C1 {}
+
+.hidden {
+    display: none;
 }

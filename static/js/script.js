@@ -98,29 +98,76 @@ function processVideo() {
 }
 
 // Handle keydown events
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        button.addEventListener('mousedown', function(event) {
+            event.preventDefault();
+        });
+    });
+    document.addEventListener('keydown', handleKeydown);
+});
 function handleKeydown(event) {
-    const dialog = document.querySelector('.saveDialog');
-    if (event.key === 'Escape') { event.preventDefault(); !dialog.classList.contains('hidden') ? hideDialog() : window.location.href = '/cleanup'; }
-    else if (event.ctrlKey) {
-        switch (event.key) {
-            case 'z': event.preventDefault(); undoVideoEdit(); break;
-            case 'y': event.preventDefault(); redoVideoEdit(); break;
-            case 's': document.getElementById("saveButton").click(); break;
-            case 'w': event.preventDefault(); window.location.href = '/cleanup'; break;
-        }
-    } else {
-        switch (event.key) {
-            case '1': document.getElementById("mediaA").click(); break;
-            case '2': document.getElementById("mediaB").click(); break;
-            case 'c': case 'C': case 'Delete': document.getElementById("mediaProcess").click(); break;
-            case 'a': case 'ArrowLeft': document.getElementById("backwardButton").click(); break;
-            case 'd': case 'ArrowRight': document.getElementById("forwardButton").click(); break;
-            case ' ': case 'Enter': document.getElementById("playButton").click(); break;
-            case 'h': case 'H': document.getElementById("hintButton").click(); break;
-        }
+    switch (event.key) {
+        case 'Escape':
+            const dialog = document.querySelector('.container-dialog');
+            event.preventDefault();
+            !dialog.classList.contains('hidden') ? hideDialog() : window.location.href = '/cleanup';
+            break;
+        case 'z':
+            if (event.ctrlKey) {
+                event.preventDefault();
+                undoVideoEdit();
+            }
+            break;
+        case 'y':
+            if (event.ctrlKey) {
+                event.preventDefault();
+                redoVideoEdit();
+            }
+            break;
+        case 's':
+            if (event.ctrlKey) {
+                document.getElementById("saveButton").click();
+            }
+            break;
+        case 'w':
+            if (event.ctrlKey) {
+                event.preventDefault();
+                window.location.href = '/cleanup';
+            }
+            break;
+        case '1':
+            document.getElementById("mediaA").click();
+            break;
+        case '2':
+            document.getElementById("mediaB").click();
+            break;
+        case 'c':
+        case 'C':
+        case 'Delete':
+            document.getElementById("mediaProcess").click();
+            break;
+        case 'a':
+        case 'ArrowLeft':
+            document.getElementById("backwardButton").click();
+            break;
+        case 'd':
+        case 'ArrowRight':
+            document.getElementById("forwardButton").click();
+            break;
+        case ' ':
+        case 'Enter':
+            document.getElementById("playButton").click();
+            break;
+        case 'h':
+        case 'H':
+            document.getElementById("hintButton").click();
+            break;
+        default:
+            break;
     }
 }
-
 // Format time values
 function formatTime(time) {
     var minutes = Math.floor(time / 60000);
@@ -194,6 +241,9 @@ function resetVideoUI() {
     document.getElementById("anchorB").style.display = "none";
     document.getElementById("anchorAValue").innerText = "00:00.000";
     document.getElementById("anchorBValue").innerText = "00:00.000";
+    playButton.innerHTML = getSVG('play');
+    backwardButton.disabled = false;
+    forwardButton.disabled = false;
     updateSlider();
     updateProcessVideoButtonState();
 }
@@ -264,7 +314,32 @@ function renderVideo() {
 };
 
 // Global dialog control functions
-var dialog, overlay;
+document.addEventListener('DOMContentLoaded', function() {
+    var openDialogButton = document.getElementById('openDialog');
+    var closeDialogButton = document.getElementById('closeDialog');
+    dialog = document.querySelector('.container-dialog');
+    overlay = document.querySelector('.overlay');
+
+    if (openDialogButton) {
+        openDialogButton.addEventListener('click', function() {
+            showDialog();
+        });
+    }
+
+    if (closeDialogButton) {
+        closeDialogButton.addEventListener('click', function() {
+            hideDialog();
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', function(event) {
+            if (event.target === overlay) {
+                hideDialog();
+            }
+        });
+    }
+});
 
 function showDialog() {
     dialog.classList.remove('hidden');
@@ -276,53 +351,63 @@ function hideDialog() {
     overlay.classList.add('hidden');
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    var openDialogButton = document.getElementById('openDialog');
-    dialog = document.querySelector('.saveDialog');
-    overlay = document.querySelector('.overlay');
-
-    // Open dialog and overlay
-    if (openDialogButton) {
-        openDialogButton.addEventListener('click', function() {
-            showDialog();
-        });
-    }
-
-    // Close dialog and overlay when clicking on the overlay
-    if (overlay) {
-        overlay.addEventListener('click', function(event) {
-            if (event.target === overlay) {
-                hideDialog();
-            }
-        });
-    }
-});
-
 // Initialize video time update
 updateVideoTime();
 
 // volume slider
 const volumeButton = document.getElementById("volumeButton");
 const volumeSliderContainer = document.getElementById("volumeSliderContainer");
-
 volumeButton.addEventListener("mouseenter", () => {
     const rect = volumeButton.getBoundingClientRect();
     volumeSliderContainer.style.display = "block";
     // Adjust horizontal position to the right by the width of the button
     volumeSliderContainer.style.left = `${rect.left + 21}px`;
-    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 29 + 14}px`;
+    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 15}px`;
 });
-
 volumeButton.addEventListener("mouseleave", () => {
     setTimeout(() => {
         if (!isHovering) volumeSliderContainer.style.display = "none";
     }, 80);
 });
-
 volumeSliderContainer.addEventListener("mouseenter", () => isHovering = true);
 volumeSliderContainer.addEventListener("mouseleave", () => {
     isHovering = false;
     if (!volumeButton.matches(":hover")) volumeSliderContainer.style.display = "none";
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        button.setAttribute('tabindex', '-1');
+    });
+});
 
+
+// output choose location
+document.addEventListener('DOMContentLoaded', function() {
+    const browseButton = document.getElementById('browseButton');
+    const outputField = document.getElementById('output');
+
+    // Create a hidden file input that accepts directories
+    const directoryInput = document.createElement('input');
+    directoryInput.type = 'file';
+    directoryInput.style.display = 'none';
+    directoryInput.webkitdirectory = true;
+    directoryInput.mozdirectory = true;
+    directoryInput.directory = true;
+
+    // Append the file input to the body
+    document.body.appendChild(directoryInput);
+
+    // When the button is clicked, trigger the file input
+    browseButton.addEventListener('click', () => {
+        directoryInput.click();
+    });
+
+    // When a directory is selected, update the input field
+    directoryInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            outputField.value = this.files[0].webkitRelativePath.split('/')[0];
+        }
+    });
+});

@@ -1,4 +1,4 @@
-import time
+# v0.7
 import time
 from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session, send_file
 from io import StringIO
@@ -36,6 +36,11 @@ atexit.register(cleanup_temp_dir)
 
 def close_window(*args, **kwargs):
     webview.windows[0].destroy()
+
+def get_desktop_path():
+    user_profile = os.environ.get('USERPROFILE')
+    desktop_path = os.path.join(user_profile, 'Desktop')
+    return desktop_path
 
 # Undo redo ###########################################################################################################
 undo_stack = []
@@ -236,7 +241,6 @@ def editor():
             return jsonify({'error': 'No selected file'})
 
         if video_file and allowed_file(video_file.filename):
-            # Check file size
             video_file.seek(0, os.SEEK_END)
             file_size = video_file.tell()
             video_file.seek(0)
@@ -253,11 +257,15 @@ def editor():
             return jsonify({'error': 'Invalid file type'})
 
     file_name = session.get('file_name', 'Default Video')
+    file_name_noext = os.path.splitext(file_name)[0]
+    file_name_ext = os.path.splitext(file_name)[1]
+    desktop_path = get_desktop_path()
     timestamp = int(time.time())
     video_path = f"/video/main.mp4?v={timestamp}"
     width, height, fps = metadata(directory)
     logger.info(f"Rendering template with filename: {file_name}")
-    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name)
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps,
+                           file_name=file_name, file_name_noext=file_name_noext, file_name_ext=file_name_ext, desktop_path=desktop_path)
 
 def allowed_file(filename):
     return '.' in filename and \
