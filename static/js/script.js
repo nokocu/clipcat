@@ -108,6 +108,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('keydown', handleKeydown);
 });
 function handleKeydown(event) {
+    // Check if the focused element is an input field
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement.tagName === 'INPUT' && activeElement.type === 'text';
+
+    // If an input is focused and Ctrl is not pressed, return unless the key is associated with Ctrl
+    if (isInputFocused && !event.ctrlKey) {
+        return;
+    }
+
+    // Process keydown events based on the key pressed
     switch (event.key) {
         case 'Escape':
             const dialog = document.querySelector('.container-dialog');
@@ -168,6 +178,7 @@ function handleKeydown(event) {
             break;
     }
 }
+
 // Format time values
 function formatTime(time) {
     var minutes = Math.floor(time / 60000);
@@ -278,7 +289,7 @@ function redoVideoEdit() {
         .catch(error => console.error('Error:', error));
 }
 
-// volume
+// Volume default value
 document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('videoToClip');
     video.volume = 0.1;
@@ -286,9 +297,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function renderVideo() {
     const source = video.currentSrc.substring(window.location.origin.length)
-    const output = document.getElementById("output").value || 'None';
+    const output = document.getElementById("output") ? document.getElementById("output").value : 'D:/python/cuts/';
     const extension = document.getElementById("extension").value || 'copy';
-    const quality = document.getElementById("quality").value || '0';
+    const quality = document.getElementById("quality") ? document.getElementById("quality").value : 'veryfast';
     const targetsize = document.getElementById("targetsize").value || 'copy';
     const resolution = document.getElementById("resolution").value || 'copy';
     const framerate = document.getElementById("framerate").value || 'copy';
@@ -313,54 +324,16 @@ function renderVideo() {
     })
 };
 
-// Global dialog control functions
-document.addEventListener('DOMContentLoaded', function() {
-    var openDialogButton = document.getElementById('openDialog');
-    var closeDialogButton = document.getElementById('closeDialog');
-    dialog = document.querySelector('.container-dialog');
-    overlay = document.querySelector('.overlay');
-
-    if (openDialogButton) {
-        openDialogButton.addEventListener('click', function() {
-            showDialog();
-        });
-    }
-
-    if (closeDialogButton) {
-        closeDialogButton.addEventListener('click', function() {
-            hideDialog();
-        });
-    }
-
-    if (overlay) {
-        overlay.addEventListener('click', function(event) {
-            if (event.target === overlay) {
-                hideDialog();
-            }
-        });
-    }
-});
-
-function showDialog() {
-    dialog.classList.remove('hidden');
-    overlay.classList.remove('hidden');
-}
-
-function hideDialog() {
-    dialog.classList.add('hidden');
-    overlay.classList.add('hidden');
-}
-
 // Initialize video time update
 updateVideoTime();
 
-// volume slider
+// Volume slider
 const volumeButton = document.getElementById("volumeButton");
 const volumeSliderContainer = document.getElementById("volumeSliderContainer");
 volumeButton.addEventListener("mouseenter", () => {
     const rect = volumeButton.getBoundingClientRect();
     volumeSliderContainer.style.display = "block";
-    // Adjust horizontal position to the right by the width of the button
+    // Adjust position
     volumeSliderContainer.style.left = `${rect.left + 21}px`;
     volumeSliderContainer.style.top = `${rect.top + window.scrollY - 15}px`;
 });
@@ -382,32 +355,71 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// configuration buttons
+const overlay = document.getElementById('overlay');
+const dialogFilesize = document.getElementById('dialogFilesize');
+const dialogResfps = document.getElementById('dialogResfps');
+const dialogExtension = document.getElementById('dialogExtension');
+const containerControls = document.getElementById('container-config');
+document.getElementById('filesizeButton').addEventListener('click', () => showDialogFilesize());
+document.getElementById('resfpsButton').addEventListener('click', () => showDialogResfps());
+document.getElementById('extensionButton').addEventListener('click', () => showDialogExtension());
 
-// output choose location
-document.addEventListener('DOMContentLoaded', function() {
-    const browseButton = document.getElementById('browseButton');
-    const outputField = document.getElementById('output');
+// Function to show dialog
+function showDialog(dialog) {
+    const anchorPos = containerControls
+    dialog.style.visibility = 'hidden';
+    dialog.classList.remove('hidden');
+    const buttonRect = anchorPos.getBoundingClientRect();
+    const controlsRect = containerControls.getBoundingClientRect();
 
-    // Create a hidden file input that accepts directories
-    const directoryInput = document.createElement('input');
-    directoryInput.type = 'file';
-    directoryInput.style.display = 'none';
-    directoryInput.webkitdirectory = true;
-    directoryInput.mozdirectory = true;
-    directoryInput.directory = true;
+    // Set the maximum width of the dialog to match the container-controls
+    dialog.style.maxWidth = `${controlsRect.width-10}px`;
 
-    // Append the file input to the body
-    document.body.appendChild(directoryInput);
+    // Calculate and set dialog position
+    dialog.style.top = `${buttonRect.top - dialog.offsetHeight-8}px`;
+    dialog.style.left = `${buttonRect.left + (buttonRect.width / 2) - (dialog.offsetWidth / 2)}px`;
+    dialog.style.visibility = 'visible';
+    overlay.classList.remove('hidden');
+}
 
-    // When the button is clicked, trigger the file input
-    browseButton.addEventListener('click', () => {
-        directoryInput.click();
-    });
+function showDialogFilesize() {
+    hideAllDialogs();
+    showDialog(dialogFilesize, 'filesizeButton');
+}
 
-    // When a directory is selected, update the input field
-    directoryInput.addEventListener('change', function() {
-        if (this.files.length > 0) {
-            outputField.value = this.files[0].webkitRelativePath.split('/')[0];
-        }
-    });
+function showDialogResfps() {
+    hideAllDialogs();
+    showDialog(dialogResfps, 'resfpsButton');
+}
+
+function showDialogExtension() {
+    hideAllDialogs();
+    showDialog(dialogExtension, 'extensionButton');
+}
+
+// Hide all dialogs
+function hideAllDialogs() {
+    dialogFilesize.classList.add('hidden');
+    dialogResfps.classList.add('hidden');
+    dialogExtension.classList.add('hidden');
+    overlay.classList.add('hidden');
+}
+
+// Overlay click to hide dialogs
+overlay.addEventListener('click', hideAllDialogs);
+
+// Adjust dialog position on window resize
+window.addEventListener('resize', () => {
+    if (!dialogFilesize.classList.contains('hidden')) {
+        showDialogFilesize();
+    }
+    if (!dialogResfps.classList.contains('hidden')) {
+        showDialogResfps();
+    }
+    if (!dialogExtension.classList.contains('hidden')) {
+        showDialogExtension();
+    }
 });
+
+

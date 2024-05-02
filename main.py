@@ -1,6 +1,8 @@
-# v0.7
+# v0.8
 import time
-from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session, send_file
+from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session, send_file, \
+    Response, after_this_request
+import re
 from io import StringIO
 from contextlib import redirect_stdout
 import webview
@@ -11,18 +13,18 @@ import atexit
 import tempfile
 from werkzeug.utils import secure_filename
 
-# Flask, logging ######################################################################################################
+# flask, logging ######################################################################################################
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Session cookie security
+# session cookie security
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# Temporary directory & misc ##########################################################################################
+# temporary directory & misc ##########################################################################################
 temp_dir = tempfile.TemporaryDirectory()
 print(f"Temporary directory created at {temp_dir.name}")
 
@@ -42,7 +44,7 @@ def get_desktop_path():
     desktop_path = os.path.join(user_profile, 'Desktop')
     return desktop_path
 
-# Undo redo ###########################################################################################################
+# undo redo ###########################################################################################################
 undo_stack = []
 redo_stack = []
 
@@ -70,11 +72,13 @@ def concat(source_1, source_2, destination):
 
 
 def trim(source, a, b, destination, video_length):
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        temp_a_path = tempfile.NamedTemporaryFile(suffix='.mp4', dir=tmp_dir, delete=False).name
-        temp_b_path = tempfile.NamedTemporaryFile(suffix='.mp4', dir=tmp_dir, delete=False).name
+    source_ext = os.path.splitext(source)[1]
 
-        # edge case prevention
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        temp_a_path = tempfile.NamedTemporaryFile(suffix=source_ext, dir=tmp_dir, delete=False).name
+        temp_b_path = tempfile.NamedTemporaryFile(suffix=source_ext, dir=tmp_dir, delete=False).name
+
+        # edge case prevention, swap if a is greater than b
         if a > b:
             a, b = b, a
 
@@ -111,84 +115,93 @@ def metadata(video_path):
         logger.error("Failed to extract video metadata: " + result.stderr)
         return "Unknown", "Unknown", "Unknown"
 
-def render(src, out, ext, qual, size, res, fps):
 
-    def preset_handler(quality, codec):
-        if codec == 'libsvtav1':
-            presets = [(95, '0'), (90, '1'), (85, '2'), (80, '3'), (75, '4'), (70, '5'), (65, '6'), (60, '7'),
-                       (55, '8'), (50, '9'), (45, '10'), (40, '11'), (0, '12')]
-        elif codec == 'libx264':
-            presets = [(95, 'veryslow'), (85, 'slower'), (75, 'slow'), (65, 'medium'), (55, 'fast'), (45, 'faster'),
-                       (35, 'veryfast'), (0, 'ultrafast')]
-        else:
-            return None
-        for threshold, preset_value in presets:
-            if quality >= threshold:
-                return preset_value
-        return None
+def render(src, out, ext, qual, size, res, fps):
 
     start_time = time.time()
     logger.info("[render]: starting")
-    cmd = ['ffmpeg', '-y', '-i', src, '-threads', '0']
+    os.environ['SVT_LOG'] = 'error'
     src_path, src_ext = os.path.splitext(src)
-    src_ext = src_ext.lstrip('.')
-    if ext == "copy":
-        logger.info(f"{out=}")
-        logger.info(f"{src_ext=}")
-        out += '.' + src_ext
-    else:
-        out += '.' + ext
+    out += '.' + (src_ext[1:] if ext == "copy" else ext[1:])
+    cmd = ['ffmpeg', '-y', '-i', src, '-threads', '0', "-v", "error"]
 
-    if ext == "copy" and size == "copy" and res == "copy" and fps == "copy":
-        logger.info("[render]: copying")
-        os.system(f'copy "{src}" "{out}"')
+    # presets (for later, temp hardcoded veryfast in js for now)
+    def preset_handler(quality, codec):
+        if codec == "libx264":
+            return quality
+        else:
+            presets = {
+                'libsvtav1': {'veryslow': '12', 'slower': '11', 'slow': '10', 'medium': '8', 'fast': '6', 'faster': '4',
+                              'veryfast': '2', 'ultrafast': '0'},
+                'libvpx-vp9': {'veryslow': '8', 'slower': '7', 'slow': '6', 'medium': '5', 'fast': '4', 'faster': '3',
+                               'veryfast': '1', 'ultrafast': '0'}
+            }
+            return presets.get(codec, {}).get(quality, None)
 
-    else:
-        if ext != "copy":
-            logger.info("[render]: changing extension")
-            qual = int(qual)
-            if src_ext in ['mp4', 'mkv'] and ext == 'webm':
-                preset = preset_handler(qual, 'libsvtav1')
-                cmd.extend(['-c:v', 'libsvtav1', '-preset', preset, '-c:a', 'libopus', '-b:a', '128k'])
-            elif src_ext == 'webm' and ext in ['mp4', 'mkv']:
-                preset = preset_handler(qual, 'libx264')
-                cmd.extend(['-c:v', 'libx264', '-preset', preset, '-c:a', 'aac', '-b:a', '192k'])
-            elif src_ext == ['mp4', 'mkv'] and ext in ['mp4', 'mkv']:
-                cmd.extend(['-c', 'copy'])
+    # codecs
+    if (src_ext in ['.mp4', '.mkv'] and ext in ['.mp4', '.mkv']) or ext == "copy":
+        if (all(x == "copy" for x in [ext, size, res, fps])) or (ext != "copy" and all(x == "copy" for x in [size, res, fps])):
+            cmd.extend(['-c', 'copy'])
+    elif src_ext in ['.mp4', '.mkv'] and ext == '.webm':
+        qual = int(qual)
+        cmd.extend(['-c:v', 'libsvtav1', '-preset', preset_handler(qual, "libsvtav1"), '-c:a', 'libopus'])
+    elif src_ext == '.webm' and ext == '.webm':
+        if all(x == "copy" for x in [ext, size, res, fps]):
+            cmd.extend(['-c', 'copy'])
+        else:
+            cmd.extend(['-c:v', 'libx264', '-c:a', 'aac'])
+    elif src_ext == '.webm' and ext in ['.mp4', '.mkv']:
+        cmd.extend(['-c:v', 'libsvtav1', '-preset', preset_handler(qual, "libx264"), '-c:a', 'libopus'])
 
-        if size != "copy":
-            logger.info("[render]: changing filesize")
-            size = int(size)
-            cmd = [x for x in cmd if x not in ('-c', 'copy')]
-            duration_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', src]
+    # filesize changer
+    if size != "copy":
+        try:
+            size = max(1, int(size) - 1)
+            duration_cmd = ['ffprobe', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', src]
             result = subprocess.run(duration_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             duration = float(result.stdout.strip())
             target_bitrate = (size * 8 * 1024) / duration
-            cmd.extend(['-b:v', f'{target_bitrate:.0f}k', '-bufsize', f'{target_bitrate:.0f}k', '-maxrate', f'{target_bitrate:.0f}k'])
 
-        if res != "copy":
-            cmd = [x for x in cmd if x not in ('-c', 'copy')]
-            logger.info("[render]: changing resolution")
-            cmd.extend(['-s', res])
+            if ext == '.webm':
+                cmd.extend(['-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', preset_handler(qual, "libvpx-vp9"), '-b:v', f'{target_bitrate:.0f}k', '-bufsize', f'{target_bitrate:.0f}k', '-maxrate', f'{target_bitrate:.0f}k'])
+            else:
+                cmd.extend(['-b:v', f'{target_bitrate:.0f}k', '-bufsize', f'{target_bitrate:.0f}k', '-maxrate', f'{target_bitrate:.0f}k'])
+        except ValueError:
+            pass
 
-        if fps != "copy":
-            cmd = [x for x in cmd if x not in ('-c', 'copy')]
-            logger.info("[render]: changing fps")
-            frame_rate_cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'default=noprint_wrappers=1:nokey=1', src]
+    # resolution changer
+    if res != "copy":
+        try:
+            max_res = (7680, 4320)
+            min_res = (1, 1)
+            width, height = map(int, res.split('x'))
+            width = max(min(width, max_res[0]), min_res[0])
+            height = max(min(height, max_res[1]), min_res[1])
+            cmd.extend(['-s', f"{width}x{height}"])
+        except ValueError:
+            res = "copy"
+
+    # framerate changer
+    if fps != "copy":
+        try:
+            fps = max(1, fps)
+            frame_rate_cmd = ['ffprobe', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'default=noprint_wrappers=1:nokey=1', src]
             result = subprocess.run(frame_rate_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             current_frame_rate = round(eval(result.stdout.strip()), 3)
             target_frame_rate = round(float(fps), 3)
             if target_frame_rate < current_frame_rate:
                 cmd.extend(['-r', fps])
+        except ValueError:
+            fps = "copy"
 
-        cmd.append(out)
-        logger.info(f"[render]: executing: ({' '.join(cmd)})")
-        subprocess.run(cmd)
-
+    cmd.append(out)
+    logger.info(f"[render]: executing: ({' '.join(cmd)})")
+    subprocess.run(cmd)
     elapsed_time = time.time() - start_time
     logger.info(f"[render]: finished in {elapsed_time:.2f} seconds.")
 
-# Routes ##############################################################################################################
+
+# routes ##############################################################################################################
 @app.route('/')
 def home():
     return render_template("index.html")
@@ -227,19 +240,19 @@ def cleanup_and_home():
 
 @app.route('/editor', methods=['GET', 'POST'])
 def editor():
-    directory = os.path.join(temp_dir.name, "main.mp4")
     max_file_size = 2000 * 1024 * 1024  # max file size (2000mb)
+    file_name = session.get('file_name', 'Default Video')
+    file_name_ext = os.path.splitext(file_name)[1]
+    directory = os.path.join(temp_dir.name, f"main{file_name_ext}")
 
     if request.method == 'POST':
         if 'video_file' not in request.files:
             logger.info("No file part")
             return jsonify({'error': 'No file part'})
-
         video_file = request.files['video_file']
         if video_file.filename == '':
             logger.info("No selected file")
             return jsonify({'error': 'No selected file'})
-
         if video_file and allowed_file(video_file.filename):
             video_file.seek(0, os.SEEK_END)
             file_size = video_file.tell()
@@ -248,28 +261,25 @@ def editor():
                 logger.info("File is too large")
                 return jsonify({'error': 'File is too large'})
             filename = secure_filename(video_file.filename)
+            file_name_ext = os.path.splitext(filename)[1]
+            directory = os.path.join(temp_dir.name, f"main{file_name_ext}")
             video_file.save(directory)
-
-            if 'file_name' not in session:
-                session['file_name'] = filename
-            logger.info(f"Video saved at: {directory}, filename: {session['file_name']}")
+            session['file_name'] = filename
+            logger.info(f"Video saved at: {directory}")
         else:
             return jsonify({'error': 'Invalid file type'})
 
-    file_name = session.get('file_name', 'Default Video')
     file_name_noext = os.path.splitext(file_name)[0]
-    file_name_ext = os.path.splitext(file_name)[1]
     desktop_path = get_desktop_path()
     timestamp = int(time.time())
-    video_path = f"/video/main.mp4?v={timestamp}"
+    video_path = f"/video/main{file_name_ext}?v={timestamp}"
     width, height, fps = metadata(directory)
     logger.info(f"Rendering template with filename: {file_name}")
-    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps,
-                           file_name=file_name, file_name_noext=file_name_noext, file_name_ext=file_name_ext, desktop_path=desktop_path)
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name, file_name_noext=file_name_noext, file_name_ext=file_name_ext, desktop_path=desktop_path)
 
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in {'mp4', 'avi', 'mov', 'flv'}
+           filename.rsplit('.', 1)[1].lower() in {'mp4', 'mkv', 'webm'}
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
@@ -277,24 +287,64 @@ def process_video():
     anchor1 = data.get("anchor1")
     anchor2 = data.get("anchor2")
     video_length = data.get("totalTime")
-    video_filename = data.get("video").split('/')[-1]
+    video_filename = data.get("video").split('/')[-1].split('?')[0]
     base_filename = video_filename.rsplit('.', 1)[0]
+    ext = os.path.splitext(video_filename)[1]
     timestamp = int(time.time())
-    source_to_trim = os.path.join(temp_dir.name, f"{base_filename}.mp4")
+    source_to_trim = os.path.join(temp_dir.name, f"{base_filename}{ext}")
     output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
-    output_from_trim = os.path.join(temp_dir.name, f"{output_name_without_digits}{timestamp}.mp4")
+    output_from_trim = os.path.join(temp_dir.name, f"{output_name_without_digits}{timestamp}{ext}")
+
+    logger.info(f"Checking existence of source video at: {source_to_trim}")
     if not os.path.exists(source_to_trim):
+        logger.error(f"Source video does not exist at: {source_to_trim}")
         return jsonify({'error': 'Source video does not exist'})
+
     push_current_state_to_undo(source_to_trim)
     trim(source_to_trim, anchor1, anchor2, output_from_trim, video_length)
     response_data = {"output": "/video/" + os.path.basename(output_from_trim)}
     return jsonify(response_data)
 
+
 @app.route('/video/<filename>')
 def video(filename):
-    cache_buster = request.args.get('v', '')
-    return send_from_directory(temp_dir.name, filename)
+    video_path = os.path.join(temp_dir.name, filename)
+    range_header = request.headers.get('Range', None)
 
+    if not range_header:
+        response = send_file(video_path)
+        response.headers['Cache-Control'] = 'no-cache'
+        return response
+
+    size = os.path.getsize(video_path)
+    start, end = 0, None
+
+    match = re.search(r'(\d+)-(\d*)', range_header)
+    if match:
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) else size - 1
+
+    length = end - start + 1
+
+    def generate():
+        with open(video_path, 'rb') as f:
+            f.seek(start)
+            remaining = length
+            chunk_size = 8192
+            while remaining > 0:
+                bytes_to_read = min(remaining, chunk_size)
+                data = f.read(bytes_to_read)
+                if not data:
+                    break
+                remaining -= len(data)
+                yield data
+
+
+    rv = Response(generate(), 206, mimetype='video/mp4', direct_passthrough=True)
+    rv.headers.add('Content-Range', f'bytes {start}-{end}/{size}')
+    rv.headers.add('Accept-Ranges', 'bytes')
+    rv.headers['Cache-Control'] = 'no-cache'
+    return rv
 
 @app.route('/render_video', methods=['POST'])
 def render_video():

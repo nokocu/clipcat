@@ -107,7 +107,6 @@
     width: 20%;
     background: #2b2d33;
     border-radius: 50%;
-    /* animation: look-around 4s infinite; */
 }
  @keyframes look-around {
 	 0% {
@@ -158,12 +157,5 @@
 	 transform: translateX(-50%);
 	 border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
 }
-/* General page styling */
- html {
-	 height: 100%;
-	 display: flex;
-	 align-items: center;
-	 justify-content: center;
-	 background: #2b2d33;
-}
+
  
