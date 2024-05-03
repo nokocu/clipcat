@@ -3,10 +3,13 @@ function chooseFile() {
     var fileInput = document.getElementById('fileInput');
     fileInput.setAttribute('accept', '.mp4,.mkv,.webm');
     fileInput.click();
+
 }
 
 // Change file
 document.getElementById('fileInput').addEventListener('change', function() {
+//    showLoading();
+    console.log("slucham")
     var file = this.files[0];
     var formData = new FormData();
     formData.append('video_file', file);
@@ -49,3 +52,54 @@ document.addEventListener('mousemove', function(event) {
         eye.style.transform = `translate(${eyeX}px, ${eyeY}px)`;
     });
 });
+
+// drag'n'drop
+document.addEventListener('DOMContentLoaded', function() {
+    var containerTop = document.querySelector('.container-top');
+    var fileInput = document.getElementById('fileInput');
+
+    containerTop.addEventListener('dragover', function(event) {
+        event.preventDefault();
+        this.classList.add('dragging-over');
+    });
+
+    containerTop.addEventListener('mouseleave', function(event) {
+    this.classList.remove('dragging-over');
+    });
+
+    containerTop.addEventListener('drop', function(event) {
+//        showLoading();
+        console.log("slucham")
+        event.preventDefault();
+        this.classList.remove('dragging-over');
+        var files = event.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            uploadFile(files[0]);
+        }
+    });
+
+    function uploadFile(file) {
+        var formData = new FormData();
+        formData.append('video_file', file);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/editor', true);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                window.location.href = '/editor';
+            } else {
+                console.error("Error during file upload: " + xhr.statusText);
+            }
+        };
+        xhr.send(formData);
+    }
+});
+
+// loading
+//function showLoading() {
+//    const loadingOverlay = document.getElementById('overlay-loading');
+//    loadingOverlay.classList.remove('hidden');
+//};
+
+

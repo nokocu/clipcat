@@ -72,6 +72,7 @@ function setPoint(point, anchorId) {
 
 // Process video
 function processVideo() {
+//    toggleLoading(true);
     const totalTime = document.getElementById("totalTime").textContent;
     const data = {
         anchor1: document.getElementById("anchorAValue").innerText,
@@ -91,6 +92,7 @@ function processVideo() {
     .then(response => {
         if (response.output) {
             updateVideoSource(response.output);
+//            toggleLoading(false);
         } else {
             console.error("Output path is missing in the response");
         }
@@ -99,14 +101,18 @@ function processVideo() {
 
 // Handle keydown events
 document.addEventListener('DOMContentLoaded', function() {
+    // Prevent buttons from taking focus on click
     const buttons = document.querySelectorAll('button');
     buttons.forEach(button => {
         button.addEventListener('mousedown', function(event) {
             event.preventDefault();
         });
     });
+
+    // Keydown event handler
     document.addEventListener('keydown', handleKeydown);
 });
+
 function handleKeydown(event) {
     // Check if the focused element is an input field
     const activeElement = document.activeElement;
@@ -296,17 +302,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function renderVideo() {
-    const source = video.currentSrc.substring(window.location.origin.length)
-    const output = document.getElementById("output") ? document.getElementById("output").value : 'D:/python/cuts/';
+    const source = video.currentSrc.substring(window.location.origin.length);
     const extension = document.getElementById("extension").value || 'copy';
-    const quality = document.getElementById("quality") ? document.getElementById("quality").value : 'veryfast';
+    const quality = document.getElementById("quality") ? document.getElementById("quality").value : 'ultrafast';
     const targetsize = document.getElementById("targetsize").value || 'copy';
     const resolution = document.getElementById("resolution").value || 'copy';
     const framerate = document.getElementById("framerate").value || 'copy';
 
     const data = {
         source: source,
-        output: output,
         extension: extension,
         quality: quality,
         targetsize: targetsize,
@@ -315,6 +319,7 @@ function renderVideo() {
     };
 
     console.log("Sending data to server:", data);
+
     fetch("render_video", {
         method: "POST",
         headers: {
@@ -322,7 +327,19 @@ function renderVideo() {
         },
         body: JSON.stringify(data)
     })
-};
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'rendered_video.mp4';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(error => console.error('Error downloading the file:', error));
+}
 
 // Initialize video time update
 updateVideoTime();
@@ -421,5 +438,66 @@ window.addEventListener('resize', () => {
         showDialogExtension();
     }
 });
+
+// Concat with drag and drop
+document.addEventListener('DOMContentLoaded', function() {
+    var dropArea = document.getElementById('drop_zone');
+    dropArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+    });
+ dropArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    var formData = new FormData();
+    formData.append('file', e.dataTransfer.files[0]);
+    fetch('/upload_file', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log(data.message);
+            var videoPath = video.currentSrc.substring(window.location.origin.length);
+            const postData = { video: videoPath };
+            return fetch('/concat_both', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(postData)
+            });
+        } else {
+            throw new Error(data.error);
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Damn. Make sure dragged video has the same extension');
+        }
+        return response.json();
+    })
+    .then(response => {
+        if (response.output) {
+            updateVideoSource(response.output);
+        } else {
+            console.error("Output path is missing in the response");
+        }
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        alert(error.message);
+        });
+    });
+})
+
+// loading
+//function toggleLoading() {
+//    const loadingOverlay = document.getElementById('overlay-loading');
+//    if (true) {
+//        loadingOverlay.classList.remove('hidden');
+//    } else {
+//        loadingOverlay.classList.add('hidden');
+//    }
+//}
+
+
 
 

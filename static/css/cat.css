@@ -83,15 +83,7 @@
 		 height: 0;
 	}
 }
- .eye::before {
-	 content: '';
-	 position: absolute;
-	 top: 60%;
-	 height: 10%;
-	 width: 15%;
-	 background: #ffc63d;
-	 border-radius: 50%;
-}
+
  .eye--left {
 	 left: 0;
 }

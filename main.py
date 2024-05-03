@@ -1,7 +1,6 @@
-# v0.8
+# v0.9
 import time
-from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session, send_file, \
-    Response, after_this_request
+from flask import Flask, request, render_template, jsonify, send_from_directory, redirect, url_for, session, send_file, Response
 import re
 from io import StringIO
 from contextlib import redirect_stdout
@@ -12,52 +11,19 @@ import subprocess
 import atexit
 import tempfile
 from werkzeug.utils import secure_filename
+from webview.dom import DOMEventHandler
 
-# flask, logging ######################################################################################################
+# flask, logging, tempdir ######################################################################################################
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-# session cookie security
+temp_dir = tempfile.TemporaryDirectory()
+print(f"Temporary directory created at {temp_dir.name}")
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-
-# temporary directory & misc ##########################################################################################
-temp_dir = tempfile.TemporaryDirectory()
-print(f"Temporary directory created at {temp_dir.name}")
-
-def cleanup_temp_dir():
-    for filename in os.listdir(temp_dir.name):
-        file_path = os.path.join(temp_dir.name, filename)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-    logger.info("Temporary directory contents cleared")
-atexit.register(cleanup_temp_dir)
-
-def close_window(*args, **kwargs):
-    webview.windows[0].destroy()
-
-def get_desktop_path():
-    user_profile = os.environ.get('USERPROFILE')
-    desktop_path = os.path.join(user_profile, 'Desktop')
-    return desktop_path
-
-# undo redo ###########################################################################################################
-undo_stack = []
-redo_stack = []
-
-def push_current_state_to_undo(video_path):
-    global undo_stack
-    undo_stack.append(video_path)
-    logger.info(f"State pushed to undo stack: {video_path}")
-
-def push_current_state_to_redo(video_path):
-    global redo_stack
-    redo_stack.append(video_path)
-    logger.info(f"State pushed to redo stack: {video_path}")
-
+webview.settings['ALLOW_DOWNLOADS'] = True
 
 # FFMPEG tools ########################################################################################################
 
@@ -116,13 +82,15 @@ def metadata(video_path):
         return "Unknown", "Unknown", "Unknown"
 
 
-def render(src, out, ext, qual, size, res, fps):
+def render(src, ext, qual, size, res, fps):
 
     start_time = time.time()
     logger.info("[render]: starting")
     os.environ['SVT_LOG'] = 'error'
     src_path, src_ext = os.path.splitext(src)
-    out += '.' + (src_ext[1:] if ext == "copy" else ext[1:])
+    out0 = os.path.join(temp_dir.name, f"render.")
+    out = f'{out0}' + (src_ext[1:] if ext == "copy" else ext[1:])
+    session['rendered_vid'] = out
     cmd = ['ffmpeg', '-y', '-i', src, '-threads', '0', "-v", "error"]
 
     # presets (for later, temp hardcoded veryfast in js for now)
@@ -130,12 +98,10 @@ def render(src, out, ext, qual, size, res, fps):
         if codec == "libx264":
             return quality
         else:
-            presets = {
-                'libsvtav1': {'veryslow': '12', 'slower': '11', 'slow': '10', 'medium': '8', 'fast': '6', 'faster': '4',
-                              'veryfast': '2', 'ultrafast': '0'},
-                'libvpx-vp9': {'veryslow': '8', 'slower': '7', 'slow': '6', 'medium': '5', 'fast': '4', 'faster': '3',
-                               'veryfast': '1', 'ultrafast': '0'}
-            }
+            presets = {'libsvtav1': {'ultrafast': '12', 'veryfast': '10', 'faster': '8', 'fast': '6', 'medium': '4',
+                                     'slow': '2', 'slower': '1', 'veryslow': '0'},
+                       'libvpx-vp9': {'ultrafast': '8', 'veryfast': '7', 'faster': '6', 'fast': '5', 'medium': '4',
+                                      'slow': '2', 'slower': '1', 'veryslow': '0'}}
             return presets.get(codec, {}).get(quality, None)
 
     # codecs
@@ -143,7 +109,6 @@ def render(src, out, ext, qual, size, res, fps):
         if (all(x == "copy" for x in [ext, size, res, fps])) or (ext != "copy" and all(x == "copy" for x in [size, res, fps])):
             cmd.extend(['-c', 'copy'])
     elif src_ext in ['.mp4', '.mkv'] and ext == '.webm':
-        qual = int(qual)
         cmd.extend(['-c:v', 'libsvtav1', '-preset', preset_handler(qual, "libsvtav1"), '-c:a', 'libopus'])
     elif src_ext == '.webm' and ext == '.webm':
         if all(x == "copy" for x in [ext, size, res, fps]):
@@ -184,7 +149,8 @@ def render(src, out, ext, qual, size, res, fps):
     # framerate changer
     if fps != "copy":
         try:
-            fps = max(1, fps)
+            fps = max(1, int(fps))
+            fps = str(fps)
             frame_rate_cmd = ['ffprobe', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'default=noprint_wrappers=1:nokey=1', src]
             result = subprocess.run(frame_rate_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             current_frame_rate = round(eval(result.stdout.strip()), 3)
@@ -192,7 +158,7 @@ def render(src, out, ext, qual, size, res, fps):
             if target_frame_rate < current_frame_rate:
                 cmd.extend(['-r', fps])
         except ValueError:
-            fps = "copy"
+            pass
 
     cmd.append(out)
     logger.info(f"[render]: executing: ({' '.join(cmd)})")
@@ -270,16 +236,11 @@ def editor():
             return jsonify({'error': 'Invalid file type'})
 
     file_name_noext = os.path.splitext(file_name)[0]
-    desktop_path = get_desktop_path()
     timestamp = int(time.time())
     video_path = f"/video/main{file_name_ext}?v={timestamp}"
     width, height, fps = metadata(directory)
     logger.info(f"Rendering template with filename: {file_name}")
-    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name, file_name_noext=file_name_noext, file_name_ext=file_name_ext, desktop_path=desktop_path)
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in {'mp4', 'mkv', 'webm'}
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name, file_name_noext=file_name_noext, file_name_ext=file_name_ext)
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
@@ -294,11 +255,6 @@ def process_video():
     source_to_trim = os.path.join(temp_dir.name, f"{base_filename}{ext}")
     output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
     output_from_trim = os.path.join(temp_dir.name, f"{output_name_without_digits}{timestamp}{ext}")
-
-    logger.info(f"Checking existence of source video at: {source_to_trim}")
-    if not os.path.exists(source_to_trim):
-        logger.error(f"Source video does not exist at: {source_to_trim}")
-        return jsonify({'error': 'Source video does not exist'})
 
     push_current_state_to_undo(source_to_trim)
     trim(source_to_trim, anchor1, anchor2, output_from_trim, video_length)
@@ -339,7 +295,6 @@ def video(filename):
                 remaining -= len(data)
                 yield data
 
-
     rv = Response(generate(), 206, mimetype='video/mp4', direct_passthrough=True)
     rv.headers.add('Content-Range', f'bytes {start}-{end}/{size}')
     rv.headers.add('Accept-Ranges', 'bytes')
@@ -349,22 +304,66 @@ def video(filename):
 @app.route('/render_video', methods=['POST'])
 def render_video():
     data = request.get_json()
-    output = data.get("output")
     extension = data.get("extension")
     targetsize = data.get("targetsize")
     resolution = data.get("resolution")
     framerate = data.get("framerate")
     quality = data.get("quality")
-
+    logger.info(f"{extension=}, {targetsize =}, {resolution=}, {framerate=}")
     video_filename = data.get("source").split('/')[-1].split('?')[0]
     source = os.path.join(temp_dir.name, f"{video_filename}")
 
     try:
-        render(src=source, out=output, ext=extension, qual=quality, size=targetsize, res=resolution, fps=framerate)
-        return jsonify({'success': True, 'message': 'Video rendering completed successfully.'})
+        render(src=source, ext=extension, qual=quality, size=targetsize, res=resolution, fps=framerate)
+        return send_file(session.get('rendered_vid'), as_attachment=True)
     except Exception as e:
         logger.error(f"Error during video rendering: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# misc ################################################################################################################
+undo_stack = []
+redo_stack = []
+
+def push_current_state_to_undo(video_path):
+    global undo_stack
+    undo_stack.append(video_path)
+    logger.info(f"State pushed to undo stack: {video_path}")
+
+def push_current_state_to_redo(video_path):
+    global redo_stack
+    redo_stack.append(video_path)
+    logger.info(f"State pushed to redo stack: {video_path}")
+
+def cleanup_temp_dir():
+    for filename in os.listdir(temp_dir.name):
+        file_path = os.path.join(temp_dir.name, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    logger.info("Temporary directory contents cleared")
+atexit.register(cleanup_temp_dir)
+
+def close_window(*args, **kwargs):
+    webview.windows[0].destroy()
+
+def on_drag(e):
+    pass
+
+def on_drop(e):
+    files = e['dataTransfer']['files']
+    if len(files) == 0:
+        return
+    logger.info(f'Event: {e["type"]}. Dropped files:')
+    for file in files:
+        logger.info(file.get('pywebviewFullPath'))
+
+
+def bind(window):
+    window.dom.document.events.dragover += DOMEventHandler(on_drag, True, True)
+    window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'mp4', 'mkv', 'webm'}
+
 
 # api #################################################################################################################
 class API:
@@ -377,6 +376,42 @@ class API:
     def window_close(self):
         webview.windows[0].destroy()
 
+# new #################################################################################################################
+
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    file = request.files['file']
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        dragged_vid = os.path.join(temp_dir.name, filename)
+        file.save(dragged_vid)
+        session['dragged_vid'] = dragged_vid
+        return jsonify({'success': True, 'message': f'File uploaded to {dragged_vid}'}), 200
+    else:
+        return jsonify({'error': 'Invalid file type'}), 400
+
+
+@app.route('/concat_both', methods=['POST'])
+def concat_files():
+    data = request.get_json()
+    video_filename = data.get("video").split('/')[-1].split('?')[0]
+    base_filename = video_filename.rsplit('.', 1)[0]
+    ext = os.path.splitext(video_filename)[1]
+    timestamp = int(time.time())
+    current_vid = os.path.join(temp_dir.name, f"{base_filename}{ext}")
+    dragged_vid = session.get('dragged_vid')
+
+    dragged_ext = os.path.splitext(dragged_vid)[1]
+    if ext != dragged_ext:
+        return jsonify({'error': 'File types do not match'}), 400
+
+    output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
+    output_from_concat = os.path.join(temp_dir.name, f"{output_name_without_digits}{timestamp}{ext}")
+    push_current_state_to_undo(current_vid)
+    concat(current_vid, dragged_vid, output_from_concat)
+    response_data = {"output": "/video/" + os.path.basename(output_from_concat)}
+    return jsonify(response_data)
+
 
 # init ################################################################################################################
 if __name__ == '__main__':
@@ -386,4 +421,4 @@ if __name__ == '__main__':
         window = webview.create_window('katcut', app, width=950, height=769,
                                        frameless=True, easy_drag=False, js_api=api_instance,
                                        background_color='#33363d')
-        webview.start(debug=True)
+        webview.start(bind, window, debug=True)
