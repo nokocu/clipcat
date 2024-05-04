@@ -15,7 +15,6 @@ const framerate = parseFloat(document.getElementById('infoFPS').textContent || d
 
 // Event listeners
 document.addEventListener('keydown', handleKeydown);
-videoSlider.addEventListener('input', updateVideoTimeFromSlider);
 video.addEventListener('timeupdate', updateSlider);
 document.getElementById("mediaA").addEventListener("click", () => setPoint(anchorA, "anchorAValue"));
 document.getElementById("mediaB").addEventListener("click", () => setPoint(anchorB, "anchorBValue"));
@@ -23,6 +22,27 @@ document.getElementById("mediaProcess").addEventListener("click", processVideo);
 document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
 document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
 document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
+video.addEventListener('loadedmetadata', function() {
+    const source = video.currentSrc.substring(window.location.origin.length);
+    updateWaveform(source);
+});
+video.addEventListener('ended', function() {
+    playButton.innerHTML = getSVG('play');
+});
+
+videoSlider.addEventListener('input', function() {
+    const percent = videoSlider.value / 100;
+    const newTime = percent * video.duration;
+    if (isFinite(newTime)) {
+        video.currentTime = newTime;
+    } else {
+        console.error("Invalid video time:", newTime);
+    }
+    if (!isDragging) {  // Only update video time if not dragging
+        video.currentTime = newTime;
+    }
+});
+
 
 // Play/Pause toggle
 function playPause() {
@@ -78,7 +98,7 @@ function processVideo() {
         anchor1: document.getElementById("anchorAValue").innerText,
         anchor2: document.getElementById("anchorBValue").innerText,
         video: video.currentSrc.substring(window.location.origin.length),
-        totalTime: totalTime
+        totalTime: totalTime  // Include the total time in the data sent to the server
     };
 
     fetch("process_video", {
@@ -105,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const buttons = document.querySelectorAll('button');
     buttons.forEach(button => {
         button.addEventListener('mousedown', function(event) {
-            event.preventDefault();
+            event.preventDefault(); // This keeps the focus from moving to the button on click
         });
     });
 
@@ -181,6 +201,7 @@ function handleKeydown(event) {
             document.getElementById("hintButton").click();
             break;
         default:
+            // Handle other keys or default case if needed
             break;
     }
 }
@@ -217,9 +238,16 @@ function updateSlider() {
 function updateProcessVideoButtonState() {
     const anchor1Text = document.getElementById("anchorAValue").textContent;
     const anchor2Text = document.getElementById("anchorBValue").textContent;
+    const totalTime = document.getElementById("totalTime").textContent;
     const processVideoButton = document.getElementById("mediaProcess");
-    processVideoButton.disabled = anchor1Text === anchor2Text;
-}
+
+    // Check if both anchors are the same or if they are at the start and end times
+    const disableCondition = (anchor1Text === anchor2Text) ||
+                             (anchor1Text === "00:00.000" && anchor2Text === totalTime) ||
+                             (anchor1Text === totalTime && anchor2Text === "00:00.000");
+
+    processVideoButton.disabled = disableCondition;
+};
 
 // Update video playback time based on slider input
 function updateVideoTimeFromSlider() {
@@ -237,17 +265,17 @@ function updateVideoSource(newSource) {
     const video = document.getElementById('videoToClip');
     const preloadVideo = document.getElementById('preloadVideo');
 
+
     // Preload new video source
     preloadVideo.src = newSource;
     preloadVideo.load();
     preloadVideo.oncanplaythrough = function() {
-
-        // Update main video source
         video.src = newSource;
         video.load();
         resetVideoUI();
     };
 }
+
 
 function resetVideoUI() {
     const videoSlider = document.getElementById('videoSlider');
@@ -333,6 +361,7 @@ function renderVideo() {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
+        // Assuming the server sends back a file with a .mp4 extension
         a.download = 'rendered_video.mp4';
         document.body.appendChild(a);
         a.click();
@@ -388,7 +417,7 @@ function showDialog(dialog) {
     dialog.style.visibility = 'hidden';
     dialog.classList.remove('hidden');
     const buttonRect = anchorPos.getBoundingClientRect();
-    const controlsRect = containerControls.getBoundingClientRect();
+    const controlsRect = containerControls.getBoundingClientRect(); // Get the dimensions of the container-controls
 
     // Set the maximum width of the dialog to match the container-controls
     dialog.style.maxWidth = `${controlsRect.width-10}px`;
@@ -449,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
     e.preventDefault();
     var formData = new FormData();
     formData.append('file', e.dataTransfer.files[0]);
-    fetch('/upload_file', {
+    fetch('/upload_to_concut', {
         method: 'POST',
         body: formData,
     })
@@ -499,5 +528,46 @@ document.addEventListener('DOMContentLoaded', function() {
 //}
 
 
+// Waveform
+function updateWaveform(newSource) {
+    const waveformContainer = document.getElementById('waveform');
+    const waveformWidth = waveformContainer.clientWidth;
 
+    // Fetch and update waveform
+    fetch(`/waveform/${newSource}?width=${waveformWidth}`)
+        .then(response => response.json())
+        .then(data => {
+            waveformContainer.style.backgroundImage = `url(data:image/png;base64,${data.image})`;
+        })
+        .catch(err => console.error('Error loading waveform:', err));
+}
 
+// holding lmb stopping playback during seeking
+let isDragging = false;
+let wasPlayingBeforeDrag = false;
+videoSlider.addEventListener('mousedown', function() {
+    isDragging = true;
+    wasPlayingBeforeDrag = !video.paused;
+    playButton.disabled = true;
+    if (wasPlayingBeforeDrag) {
+        video.pause();
+    }
+});
+videoSlider.addEventListener('mouseup', function() {
+    isDragging = false;
+    playButton.disabled = false;
+    if (wasPlayingBeforeDrag) {
+        video.play();
+    }
+});
+document.addEventListener('mouseup', function() {
+    if (playButton.disabled) {
+        playButton.disabled = false;
+    }
+    if (isDragging) {
+        isDragging = false;
+        if (wasPlayingBeforeDrag) {
+            video.play();
+        }
+    }
+});

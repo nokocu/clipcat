@@ -1,7 +1,7 @@
 // Choose file function
 function chooseFile() {
     var fileInput = document.getElementById('fileInput');
-    fileInput.setAttribute('accept', '.mp4,.mkv,.webm');
+    fileInput.setAttribute('accept', '.mp4,.mkv,.webm'); // Restrict file types
     fileInput.click();
 
 }

@@ -11,6 +11,10 @@
 </head>
 
 <body>
+    <div id="resizeborder-top" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+    <div id="resizeborder-right" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+    <div id="resizeborder-bottom" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+    <div id="resizeborder-left" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
     <div id="overlay" class="overlay hidden"></div>
 <!--    <div id="overlay-loading" class="overlay-loading"><h3 style="text-loading">Loading...</h3></div>-->
 
@@ -55,7 +59,7 @@
 
 
     <div class="container-all">
-        <div class="pywebview-drag-region">
+        <div class="pywebview-drag-region" ondblclick="pywebview.api.window_maximize()">
             <div class="container-title">
                 <img src="/static/assets/favicon.ico" class="titlebar-ico">
                 <h6 class="text-titlebar">katcut</h6>
@@ -67,7 +71,7 @@
             </div>
         </div>
 
-        <div class="container-both">
+        <div class="container-both" >
 
             <div class="container-top">
                 <img class="poster-image" src="/static/assets/poster.png">

@@ -10,6 +10,10 @@
 </head>
 
 <body>
+    <div id="resizeborder-top" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+    <div id="resizeborder-right" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+    <div id="resizeborder-bottom" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+    <div id="resizeborder-left" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
     <div id="overlay" class="overlay hidden"></div>
     <div id="overlay-loading" class="overlay-loading hidden"></div>
 
@@ -85,9 +89,12 @@
 
                 
                 <div class="container-bottom-A">
-                    <input class="video-slider " id="videoSlider" onkeydown="event.preventDefault()" type="range" min="0" value="0"  step="0.01">
-                    <div id="anchorA" style="display: none"></div>
-                    <div id="anchorB" style="display: none"></div>
+                    <div class="video-slider" id="videoSliderContainer">
+                        <div id="waveform" class="waveform"></div>
+                        <input class="video-slider " id="videoSlider" onkeydown="event.preventDefault()" type="range" min="0" value="0"  step="0.01">
+                        <div id="anchorA" style="display: none"></div>
+                        <div id="anchorB" style="display: none"></div>
+                    </div>
                 </div>
 
                 <div class="container-bottom-B">

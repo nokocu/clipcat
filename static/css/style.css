@@ -69,7 +69,7 @@ button:focus {
     height: 44px;
     cursor: pointer;
     border-right: 2px solid white;
-    z-index: 2;
+    z-index: 3;
 }
 
 .video-slider::-moz-range-thumb {
@@ -110,8 +110,16 @@ button:focus {
     position: relative;
 }
 
+.btn-secondary:disabled {
+    cursor: not-allowed;
+}
+
 .btn-secondary:hover {
     background-color: var(--yel);
+}
+
+.btn-secondary:disabled:hover {
+    background-color: var(--grey);
 }
 
 .btn-main {
@@ -123,8 +131,16 @@ button:focus {
     transition: background-color 0.3s;
 }
 
+.btn-main:disabled {
+    cursor: not-allowed;
+}
+
 .btn-main:hover {
     background-color: var(--grey);
+}
+
+.btn-main:disabled:hover {
+    background-color: var(--yel);
 }
 
 .btn-index {
@@ -444,6 +460,56 @@ textarea:focus, input:focus{
     color: var(--yel);
 }
 
+.waveform {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    background-size: 100% 100%;
+    background-position: center;
+    pointer-events: none;
+}
+
+.resize-border {
+    position: fixed;
+    z-index: 9999; /* Ensures it stays on top of other content */
+}
+
+#resizeborder-top {
+    top: 0;
+    left: 0;
+    right: 84px;
+    height: 10px; /* Thickness of the clickable area */
+    cursor: n-resize; /* Cursor indicates resizing direction */
+}
+
+#resizeborder-right {
+    top: 24px;
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    cursor: e-resize;
+}
+
+#resizeborder-bottom {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 10px;
+    cursor: s-resize;
+}
+
+#resizeborder-left {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 10px;
+    cursor: w-resize;
+}
+
 .hidden {
     display: none;
 }
+
