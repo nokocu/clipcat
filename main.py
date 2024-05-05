@@ -1,12 +1,10 @@
-# v0.10
-import threading
-
+# v0.11
 from flask import Flask, request, render_template, jsonify, redirect, url_for, session, send_file, Response
 from contextlib import redirect_stdout
 from io import StringIO
 from werkzeug.utils import secure_filename
 from webview.dom import DOMEventHandler
-import atexit
+import threading
 import logging
 import os
 import re
@@ -14,13 +12,14 @@ import subprocess
 import tempfile
 import time
 import webview
-import numpy as np
+from array import array
 from pydub import AudioSegment
 import base64
 from PIL import Image, ImageDraw
 from ctypes import windll, Structure, c_long, byref
-
-# flask, logging, tempdir ######################################################################################################
+from pymediainfo import MediaInfo
+import wave
+########################################################################################################################
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 logging.basicConfig(level=logging.DEBUG)
@@ -31,6 +30,7 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 webview.settings['ALLOW_DOWNLOADS'] = True
+ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ffmpeg.exe')
 
 
 # FFMPEG tools ########################################################################################################
@@ -40,7 +40,7 @@ def concat(source_1, source_2, destination):
         with open(temp_txt_path, 'w') as temp_txt:
             temp_txt.write(f"file '{source_1}'\n")
             temp_txt.write(f"file '{source_2}'\n")
-        command = ["ffmpeg", "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
+        command = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
         subprocess.run(command)
 
 
@@ -58,35 +58,39 @@ def trim(source, a, b, destination, video_length):
         # logger.info(f"Processing video: ({source}, {a}, {b}, {destination})")
 
         if b == video_length:
-            command = ["ffmpeg", "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y",
+            command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y",
                        "-loglevel", "error"]
             subprocess.run(command)
         elif not a == "00:00.000":
-            command = ["ffmpeg", "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel",
+            command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel",
                        "error"]
             subprocess.run(command)
-            command = ["ffmpeg", "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y",
+            command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y",
                        "-loglevel", "error"]
             subprocess.run(command)
             concat(temp_a_path, temp_b_path, destination)
         elif a == "00:00.000":
-            command = ["ffmpeg", "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y",
+            command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y",
                        "-loglevel", "error"]
             subprocess.run(command)
 
         session["src_to_wave"] = destination
 
+
 def metadata(video_path):
-    command = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode == 0:
-        width, height, fps = result.stdout.split()
-        num, den = map(int, fps.split('/'))
-        fps = num / den if den != 0 else num
-        logger.info(f"[metadata]: {width}x{height} @ {fps} FPS")
-        return width, height, fps
-    else:
-        logger.error("[metadata] Failed to extract video metadata: " + result.stderr)
+    try:
+        media_info = MediaInfo.parse(video_path)
+        for track in media_info.tracks:
+            if track.track_type == 'Video':
+                width = track.width
+                height = track.height
+                fps = track.frame_rate
+
+                logger.info(f"[metadata]: {width}x{height} @ {fps} FPS")
+                return width, height, float(fps)
+
+    except Exception as e:
+        logger.error(f"[metadata] Failed to extract video metadata: {str(e)}")
         return "Unknown", "Unknown", "Unknown"
 
 
@@ -98,7 +102,7 @@ def render(src, ext, qual, size, res, fps):
     out0 = os.path.join(temp_dir.name, f"render.")
     out = f'{out0}' + (src_ext[1:] if ext == "copy" else ext[1:])
     session['rendered_vid'] = out
-    cmd = ['ffmpeg', '-y', '-i', src, '-threads', '0', "-v", "error"]
+    cmd = [ffmpeg_path, '-y', '-i', src, '-threads', '0', "-v", "error"]
 
     # presets (temp hardcoded veryfast in js for now)
     def preset_handler(quality, codec):
@@ -129,9 +133,12 @@ def render(src, ext, qual, size, res, fps):
     if size != "copy":
         try:
             size = max(1, int(size) - 1)
-            duration_cmd = ['ffprobe', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', src]
-            result = subprocess.run(duration_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            duration = float(result.stdout.strip())
+            media_info = MediaInfo.parse(src)
+            duration = None
+            for track in media_info.tracks:
+                if track.track_type == 'General':
+                    duration = float(track.duration) / 1000
+                    break
             target_bitrate = (size * 8 * 1024) / duration
 
             if ext == '.webm':
@@ -157,13 +164,20 @@ def render(src, ext, qual, size, res, fps):
     if fps != "copy":
         try:
             fps = max(1, int(fps))
-            fps = str(fps)
-            frame_rate_cmd = ['ffprobe', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'default=noprint_wrappers=1:nokey=1', src]
-            result = subprocess.run(frame_rate_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            current_frame_rate = round(eval(result.stdout.strip()), 3)
+            media_info = MediaInfo.parse(src)
+            current_frame_rate = None
+            for track in media_info.tracks:
+                if track.track_type == 'Video':
+                    current_frame_rate = float(track.frame_rate)
+                    break
+
+            if current_frame_rate is None:
+                logger.error("Frame rate not found in media info.")
+
             target_frame_rate = round(float(fps), 3)
+            current_frame_rate = round(current_frame_rate, 3)
             if target_frame_rate < current_frame_rate:
-                cmd.extend(['-r', fps])
+                cmd.extend(['-r', str(fps)])
         except ValueError:
             pass
 
@@ -414,16 +428,37 @@ def on_drop(e):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'mp4', 'mkv', 'webm'}
 
+
+
+
 def generate_waveform(audio_path, width):
-    audio = AudioSegment.from_file(audio_path)
-    data = np.array(audio.get_array_of_samples())
-    data = np.abs(data) / np.max(np.abs(data))  # Normalize data
-    h = 34  # Fixed height
-    img = Image.new('RGBA', (int(width), h), (255, 255, 255, 0))
+    width = int(width)
+    with wave.open(audio_path, 'r') as wave_file:
+        n_frames = wave_file.getnframes()
+        frames = wave_file.readframes(n_frames)
+        sample_width = wave_file.getsampwidth()
+    step = max(1, len(frames) // (width * sample_width))
+    amplitude = []
+    for i in range(0, len(frames), step * sample_width):
+        if sample_width == 2:
+            amp = abs(int.from_bytes(frames[i:i+2], byteorder='little', signed=True))
+        elif sample_width == 1:
+            amp = abs(int.from_bytes(frames[i:i+1], byteorder='little', signed=False) - 128)
+        amplitude.append(amp)
+    max_amp = max(amplitude, default=1)
+    norm_amp = [int((17 * amp) / max_amp) for amp in amplitude]
+
+    if len(norm_amp) > width:
+        norm_amp = norm_amp[:width]
+    elif len(norm_amp) < width:
+        norm_amp += [0] * (width - len(norm_amp))
+
+    img = Image.new('RGBA', (width, 34), (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
-    for x in range(int(width)):
-        amp = data[int(x * len(data) / int(width))] * h  # Scale amplitude to height
-        draw.line((x, h / 2 - amp, x, h / 2 + amp), fill='#2b2d33')  # Draw line centered vertically
+    color = (43, 45, 51, 255)
+
+    for i, amp in enumerate(norm_amp):
+        draw.line([(i, 17 - amp), (i, 17 + amp)], fill=color)
 
     temp_dir = tempfile.TemporaryDirectory()
     path = os.path.join(temp_dir.name, "waveform.png")
@@ -434,9 +469,10 @@ def generate_waveform(audio_path, width):
     temp_dir.cleanup()
     return encoded
 
+
 def extract_audio(video_path):
     audio_path = os.path.join(temp_dir.name, "temp_audio.wav")
-    command = ['ffmpeg', '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path]
+    command = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y']
     subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     return audio_path
 
@@ -506,5 +542,5 @@ if __name__ == '__main__':
         api_instance = API()
         window = webview.create_window('katcut', app, width=950, height=769,
                                        frameless=True, easy_drag=False, js_api=api_instance,
-                                       background_color='#33363d', shadow=True)
+                                       background_color='#33363d', shadow=True, min_size=(585, 533))
         webview.start(bind, window, debug=True)

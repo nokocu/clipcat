@@ -9,7 +9,6 @@ function chooseFile() {
 // Change file
 document.getElementById('fileInput').addEventListener('change', function() {
 //    showLoading();
-    console.log("slucham")
     var file = this.files[0];
     var formData = new FormData();
     formData.append('video_file', file);
@@ -68,8 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     containerTop.addEventListener('drop', function(event) {
-//        showLoading();
-        console.log("slucham")
+
         event.preventDefault();
         this.classList.remove('dragging-over');
         var files = event.dataTransfer.files;
@@ -96,10 +94,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// loading
-//function showLoading() {
-//    const loadingOverlay = document.getElementById('overlay-loading');
-//    loadingOverlay.classList.remove('hidden');
-//};
+
 
 

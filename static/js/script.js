@@ -92,14 +92,17 @@ function setPoint(point, anchorId) {
 
 // Process video
 function processVideo() {
-//    toggleLoading(true);
+    const video = document.getElementById('videoToClip');
     const totalTime = document.getElementById("totalTime").textContent;
     const data = {
         anchor1: document.getElementById("anchorAValue").innerText,
         anchor2: document.getElementById("anchorBValue").innerText,
         video: video.currentSrc.substring(window.location.origin.length),
-        totalTime: totalTime  // Include the total time in the data sent to the server
+        totalTime: totalTime
     };
+
+    video.style.transition = 'opacity 0.2s ease-in-out';
+    video.style.opacity = '0.3';
 
     fetch("process_video", {
         method: "POST",
@@ -111,10 +114,12 @@ function processVideo() {
     .then(response => response.json())
     .then(response => {
         if (response.output) {
-            updateVideoSource(response.output);
-//            toggleLoading(false);
+            setTimeout(() => {
+                updateVideoSource(response.output);
+            }, 300);
         } else {
             console.error("Output path is missing in the response");
+            video.style.opacity = '1';
         }
     });
 }
@@ -179,8 +184,8 @@ function handleKeydown(event) {
         case '2':
             document.getElementById("mediaB").click();
             break;
-        case 'c':
-        case 'C':
+        case 'x':
+        case 'X':
         case 'Delete':
             document.getElementById("mediaProcess").click();
             break;
@@ -195,10 +200,6 @@ function handleKeydown(event) {
         case ' ':
         case 'Enter':
             document.getElementById("playButton").click();
-            break;
-        case 'h':
-        case 'H':
-            document.getElementById("hintButton").click();
             break;
         default:
             // Handle other keys or default case if needed
@@ -263,16 +264,24 @@ function updateVideoTimeFromSlider() {
 
 function updateVideoSource(newSource) {
     const video = document.getElementById('videoToClip');
-    const preloadVideo = document.getElementById('preloadVideo');
-
-
-    // Preload new video source
+    const originalWidth = video.offsetWidth;
+    const originalHeight = video.offsetHeight;
+    video.style.minWidth = `${originalWidth}px`;
+    video.style.minHeight = `${originalHeight}px`;
+    const preloadVideo = document.createElement('video');
+    video.style.transition = 'opacity 0.2s ease-in-out';
+    video.style.opacity = '0';
     preloadVideo.src = newSource;
     preloadVideo.load();
     preloadVideo.oncanplaythrough = function() {
         video.src = newSource;
         video.load();
         resetVideoUI();
+        video.style.opacity = '1';
+        setTimeout(() => {
+            video.style.minWidth = '';
+            video.style.minHeight = '';
+        }, 500);
     };
 }
 
@@ -299,10 +308,9 @@ function undoVideoEdit() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                console.log('Undo successful:', data.message);
                 updateVideoSource(data.video_path);
             } else {
-                console.log('Undo failed:', data.error);
+                console.log('[script.js undoVideoEdit]  Undo failed:', data.error);
             }
         })
         .catch(error => console.error('Error:', error));
@@ -314,10 +322,9 @@ function redoVideoEdit() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                console.log('Redo successful:', data.message);
                 updateVideoSource(data.video_path);
             } else {
-                console.log('Redo failed:', data.error);
+                console.log('[script.js redoVideoEdit]  Redo failed:', data.error);
             }
         })
         .catch(error => console.error('Error:', error));
@@ -346,7 +353,6 @@ function renderVideo() {
         framerate: framerate,
     };
 
-    console.log("Sending data to server:", data);
 
     fetch("render_video", {
         method: "POST",
@@ -470,51 +476,58 @@ window.addEventListener('resize', () => {
 
 // Concat with drag and drop
 document.addEventListener('DOMContentLoaded', function() {
+    var containerTop = document.querySelector('.container-top');
     var dropArea = document.getElementById('drop_zone');
-    dropArea.addEventListener('dragover', function(e) {
+
+    containerTop.addEventListener('dragover', function(e) {
+        this.classList.add('dragging-over');
         e.preventDefault();
     });
- dropArea.addEventListener('drop', function(e) {
-    e.preventDefault();
-    var formData = new FormData();
-    formData.append('file', e.dataTransfer.files[0]);
-    fetch('/upload_to_concut', {
-        method: 'POST',
-        body: formData,
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log(data.message);
-            var videoPath = video.currentSrc.substring(window.location.origin.length);
-            const postData = { video: videoPath };
-            return fetch('/concat_both', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(postData)
-            });
-        } else {
-            throw new Error(data.error);
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Damn. Make sure dragged video has the same extension');
-        }
-        return response.json();
-    })
-    .then(response => {
-        if (response.output) {
-            updateVideoSource(response.output);
-        } else {
-            console.error("Output path is missing in the response");
-        }
-    })
-    .catch(error => {
-        console.error("Error:", error);
-        alert(error.message);
-        });
+
+    containerTop.addEventListener('mouseleave', function(event) {
+        this.classList.remove('dragging-over');
     });
+
+    dropArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var formData = new FormData();
+        formData.append('file', e.dataTransfer.files[0]);
+        fetch('/upload_to_concut', {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                var videoPath = video.currentSrc.substring(window.location.origin.length);
+                const postData = { video: videoPath };
+                return fetch('/concat_both', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(postData)
+                });
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Damn. For now make sure dragged video has the same extension');
+            }
+            return response.json();
+        })
+        .then(response => {
+            if (response.output) {
+                updateVideoSource(response.output);
+            } else {
+                console.error("Output path is missing in the response");
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert(error.message);
+            });
+        });
 })
 
 // loading
@@ -571,3 +584,4 @@ document.addEventListener('mouseup', function() {
         }
     }
 });
+

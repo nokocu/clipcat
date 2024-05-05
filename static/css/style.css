@@ -7,12 +7,16 @@
   --greyer: #465264;
 }
 
-html {
-	 height: 100%;
-	 display: flex;
-	 align-items: center;
-	 justify-content: center;
+html, body {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
 }
+
 
 body {
     overflow: hidden;
@@ -193,7 +197,11 @@ button:focus {
 
 .container-both {
     width: 100%;
-    max-width: 1520px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     margin: 0 auto;
     padding: 1rem;
     box-sizing: border-box;
@@ -207,9 +215,9 @@ button:focus {
     margin-top: 1rem;
     padding-top: 1rem;
     border-radius: 5px;
-    overflow: hidden;
     background-color: var(--dark);
     box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
+    width: 100%;
 }
 
 .container-bottom-A {
@@ -247,10 +255,16 @@ button:focus {
 }
 
 .container-all {
+    display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    width: 100%;
+    max-width: 1520px;
+    height: 100vh;
     padding: 21px 0px 0px 0px;
+    box-sizing: border-box;
+    overflow: auto;
 }
 
 .container-dialog {
@@ -333,6 +347,8 @@ button:focus {
     display: block;
     position: relative;
     z-index: 2;
+    background-color: var(--dark);
+    transition: opacity 0.1s ease-in-out;
 }
 
 
@@ -432,12 +448,15 @@ textarea:focus, input:focus{
     overflow: hidden;
     display: flex;
     box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
-    transition: background-color 0.3s, border 0.3s;
-    border: 2px solid transparent;
+    transition: background-color 0.3s, outline 0.3s;
+    width: 100%;
+    background-color: var(--dark);
+    outline: 2px solid transparent;
+    box-sizing: border-box;
 }
 
 .container-top.dragging-over {
-    border: 2px solid var(--yel);
+    outline-color: var(--yel);
 }
 
 .overlay-loading {
@@ -474,15 +493,15 @@ textarea:focus, input:focus{
 
 .resize-border {
     position: fixed;
-    z-index: 9999; /* Ensures it stays on top of other content */
+    z-index: 9999;
 }
 
 #resizeborder-top {
     top: 0;
     left: 0;
     right: 84px;
-    height: 10px; /* Thickness of the clickable area */
-    cursor: n-resize; /* Cursor indicates resizing direction */
+    height: 10px;
+    cursor: n-resize;
 }
 
 #resizeborder-right {
@@ -508,6 +527,7 @@ textarea:focus, input:focus{
     width: 10px;
     cursor: w-resize;
 }
+
 
 .hidden {
     display: none;
