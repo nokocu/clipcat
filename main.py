@@ -1,9 +1,12 @@
-# v0.11
+# v0.12
 from flask import Flask, request, render_template, jsonify, redirect, url_for, session, send_file, Response
 from contextlib import redirect_stdout
 from io import StringIO
 from werkzeug.utils import secure_filename
 from webview.dom import DOMEventHandler
+from PIL import Image, ImageDraw
+from ctypes import windll, Structure, c_long, byref
+from pymediainfo import MediaInfo
 import threading
 import logging
 import os
@@ -12,20 +15,20 @@ import subprocess
 import tempfile
 import time
 import webview
-from array import array
-from pydub import AudioSegment
-import base64
-from PIL import Image, ImageDraw
-from ctypes import windll, Structure, c_long, byref
-from pymediainfo import MediaInfo
 import wave
+import base64
+import atexit
+
 ########################################################################################################################
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-temp_dir = tempfile.TemporaryDirectory()
-print(f"Temporary directory created at {temp_dir.name}")
+
+temp_dir_path = os.path.join(tempfile.gettempdir(), "temp_nkc")
+os.makedirs(temp_dir_path, exist_ok=True)
+
+print(f"Temporary directory created at {temp_dir_path}")
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -35,46 +38,38 @@ ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ffmpeg.e
 
 # FFMPEG tools ########################################################################################################
 def concat(source_1, source_2, destination):
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        temp_txt_path = tempfile.NamedTemporaryFile(mode='w', dir=tmp_dir, delete=False).name
-        with open(temp_txt_path, 'w') as temp_txt:
-            temp_txt.write(f"file '{source_1}'\n")
-            temp_txt.write(f"file '{source_2}'\n")
-        command = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
-        subprocess.run(command)
+    temp_txt_path = os.path.join(temp_dir_path, "temp_concat_list.txt")
+    with open(temp_txt_path, 'w') as temp_txt:
+        temp_txt.write(f"file '{source_1}'\n")
+        temp_txt.write(f"file '{source_2}'\n")
+    command = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
+    subprocess.run(command)
+    os.remove(temp_txt_path)
 
 
 def trim(source, a, b, destination, video_length):
     source_ext = os.path.splitext(source)[1]
+    temp_a_path = os.path.join(temp_dir_path, f"temp_a{source_ext}")
+    temp_b_path = os.path.join(temp_dir_path, f"temp_b{source_ext}")
+    if a > b:
+        a, b = b, a
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        temp_a_path = tempfile.NamedTemporaryFile(suffix=source_ext, dir=tmp_dir, delete=False).name
-        temp_b_path = tempfile.NamedTemporaryFile(suffix=source_ext, dir=tmp_dir, delete=False).name
+    if b == video_length:
+        command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
+        subprocess.run(command)
+    elif not a == "00:00.000":
+        command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel", "error"]
+        subprocess.run(command)
+        command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
+        subprocess.run(command)
+        concat(temp_a_path, temp_b_path, destination)
+        os.remove(temp_a_path)
+        os.remove(temp_b_path)
+    elif a == "00:00.000":
+        command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
+        subprocess.run(command)
 
-        # edge case prevention, swap if a is greater than b
-        if a > b:
-            a, b = b, a
-
-        # logger.info(f"Processing video: ({source}, {a}, {b}, {destination})")
-
-        if b == video_length:
-            command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y",
-                       "-loglevel", "error"]
-            subprocess.run(command)
-        elif not a == "00:00.000":
-            command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel",
-                       "error"]
-            subprocess.run(command)
-            command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y",
-                       "-loglevel", "error"]
-            subprocess.run(command)
-            concat(temp_a_path, temp_b_path, destination)
-        elif a == "00:00.000":
-            command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y",
-                       "-loglevel", "error"]
-            subprocess.run(command)
-
-        session["src_to_wave"] = destination
+    session["src_to_wave"] = destination
 
 
 def metadata(video_path):
@@ -99,7 +94,7 @@ def render(src, ext, qual, size, res, fps):
     logger.info("[render]: starting")
     os.environ['SVT_LOG'] = 'error'
     src_path, src_ext = os.path.splitext(src)
-    out0 = os.path.join(temp_dir.name, f"render.")
+    out0 = os.path.join(temp_dir_path, f"render.")
     out = f'{out0}' + (src_ext[1:] if ext == "copy" else ext[1:])
     session['rendered_vid'] = out
     cmd = [ffmpeg_path, '-y', '-i', src, '-threads', '0', "-v", "error"]
@@ -233,7 +228,7 @@ def editor():
     max_file_size = 2000 * 1024 * 1024  # max file size (2000mb)
     file_name = session.get('file_name', 'Default Video')
     file_name_ext = os.path.splitext(file_name)[1]
-    directory = os.path.join(temp_dir.name, f"main{file_name_ext}")
+    directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
 
     if request.method == 'POST':
         video_file = request.files['video_file']
@@ -246,7 +241,7 @@ def editor():
                 return jsonify({'error': 'File is too large'})
             filename = secure_filename(video_file.filename)
             file_name_ext = os.path.splitext(filename)[1]
-            directory = os.path.join(temp_dir.name, f"main{file_name_ext}")
+            directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
             video_file.save(directory)
             session["src_to_wave"] = directory
             session['file_name'] = filename
@@ -259,7 +254,7 @@ def editor():
     video_path = f"/video/main{file_name_ext}?v={timestamp}"
     width, height, fps = metadata(directory)
     logger.info(f"[editor] Booting up template with filename: {file_name}")
-    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name, file_name_noext=file_name_noext, file_name_ext=file_name_ext)
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name_noext=file_name_noext)
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
@@ -271,9 +266,9 @@ def process_video():
     base_filename = video_filename.rsplit('.', 1)[0]
     ext = os.path.splitext(video_filename)[1]
     timestamp = int(time.time())
-    source_to_trim = os.path.join(temp_dir.name, f"{base_filename}{ext}")
+    source_to_trim = os.path.join(temp_dir_path, f"{base_filename}{ext}")
     output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
-    output_from_trim = os.path.join(temp_dir.name, f"{output_name_without_digits}{timestamp}{ext}")
+    output_from_trim = os.path.join(temp_dir_path, f"{output_name_without_digits}{timestamp}{ext}")
 
     push_current_state_to_undo(source_to_trim)
     log_stack()
@@ -284,7 +279,7 @@ def process_video():
 
 @app.route('/video/<filename>')
 def video(filename):
-    video_path = os.path.join(temp_dir.name, filename)
+    video_path = os.path.join(temp_dir_path, filename)
     range_header = request.headers.get('Range', None)
 
     if not range_header:
@@ -330,7 +325,7 @@ def render_video():
     quality = data.get("quality")
     logger.info(f"[render_video] {extension=}, {targetsize =}, {resolution=}, {framerate=}")
     video_filename = data.get("source").split('/')[-1].split('?')[0]
-    source = os.path.join(temp_dir.name, f"{video_filename}")
+    source = os.path.join(temp_dir_path, f"{video_filename}")
 
     try:
         render(src=source, ext=extension, qual=quality, size=targetsize, res=resolution, fps=framerate)
@@ -344,7 +339,7 @@ def upload_file():
     file = request.files['file']
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        dragged_vid = os.path.join(temp_dir.name, filename)
+        dragged_vid = os.path.join(temp_dir_path, filename)
         file.save(dragged_vid)
         session['dragged_vid'] = dragged_vid
         return jsonify({'success': True, 'message': f'File uploaded to {dragged_vid}'}), 200
@@ -358,7 +353,7 @@ def concat_files():
     base_filename = video_filename.rsplit('.', 1)[0]
     ext = os.path.splitext(video_filename)[1]
     timestamp = int(time.time())
-    current_vid = os.path.join(temp_dir.name, f"{base_filename}{ext}")
+    current_vid = os.path.join(temp_dir_path, f"{base_filename}{ext}")
     dragged_vid = session.get('dragged_vid')
 
     dragged_ext = os.path.splitext(dragged_vid)[1]
@@ -366,7 +361,7 @@ def concat_files():
         return jsonify({'error': 'File types do not match'}), 400
 
     output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
-    output_from_concat = os.path.join(temp_dir.name, f"{output_name_without_digits}{timestamp}{ext}")
+    output_from_concat = os.path.join(temp_dir_path, f"{output_name_without_digits}{timestamp}{ext}")
     push_current_state_to_undo(current_vid)
     concat(current_vid, dragged_vid, output_from_concat)
     response_data = {"output": "/video/" + os.path.basename(output_from_concat)}
@@ -387,16 +382,16 @@ redo_stack = []
 def push_current_state_to_undo(video_path):
     global undo_stack
     undo_stack.append(video_path)
-    # logger.info(f"State pushed to undo stack: {video_path}")
+
 
 def push_current_state_to_redo(video_path):
     global redo_stack
     redo_stack.append(video_path)
-    # logger.info(f"State pushed to redo stack: {video_path}")
+
 
 def cleanup_temp_dir():
-    for filename in os.listdir(temp_dir.name):
-        file_path = os.path.join(temp_dir.name, filename)
+    for filename in os.listdir(temp_dir_path):
+        file_path = os.path.join(temp_dir_path, filename)
         if os.path.isfile(file_path):
             while True:
                 try:
@@ -410,26 +405,8 @@ def cleanup_temp_dir():
                     break
 
 
-def close_window(*args, **kwargs):
-    webview.windows[0].destroy()
-
-def on_drag(e):
-    pass
-
-def on_drop(e):
-    files = e['dataTransfer']['files']
-    if len(files) == 0:
-        return
-    logger.info(f'[on_drop] Event: {e["type"]}. Dropped files:')
-    for file in files:
-        logger.info(f"[on_drop] {file.get('pywebviewFullPath')}")
-
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'mp4', 'mkv', 'webm'}
-
-
-
 
 def generate_waveform(audio_path, width):
     width = int(width)
@@ -460,18 +437,16 @@ def generate_waveform(audio_path, width):
     for i, amp in enumerate(norm_amp):
         draw.line([(i, 17 - amp), (i, 17 + amp)], fill=color)
 
-    temp_dir = tempfile.TemporaryDirectory()
-    path = os.path.join(temp_dir.name, "waveform.png")
+
+    path = os.path.join(temp_dir_path, "waveform.png")
     img.save(path)
     with open(path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode('utf-8')
-    os.remove(path)
-    temp_dir.cleanup()
     return encoded
 
 
 def extract_audio(video_path):
-    audio_path = os.path.join(temp_dir.name, "temp_audio.wav")
+    audio_path = os.path.join(temp_dir_path, "temp_audio.wav")
     command = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y']
     subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     return audio_path
@@ -480,7 +455,21 @@ def log_stack():
     logger.info(f"[log_stack] Undo Stack: {undo_stack}")
     logger.info(f"[log_stack] Redo Stack: {redo_stack}")
 
-# window resize stuff ##################################################################################################
+# pywebview stuff ######################################################################################################
+
+def close_window(*args, **kwargs):
+    webview.windows[0].destroy()
+
+def on_drag(e):
+    pass
+
+def on_drop(e):
+    files = e['dataTransfer']['files']
+    if len(files) == 0:
+        return
+    logger.info(f'[on_drop] Event: {e["type"]}. Dropped files:')
+    for file in files:
+        logger.info(f"[on_drop] {file.get('pywebviewFullPath')}")
 
 class API:
     def window_minimize(self):
@@ -538,9 +527,11 @@ def resizewindow(window):
 
 if __name__ == '__main__':
     stream = StringIO()
+    cleanup_temp_dir()
+    atexit.register(cleanup_temp_dir)
     with redirect_stdout(stream):
         api_instance = API()
-        window = webview.create_window('katcut', app, width=950, height=769,
+        window = webview.create_window('katcut', app, width=1018, height=803,
                                        frameless=True, easy_drag=False, js_api=api_instance,
                                        background_color='#33363d', shadow=True, min_size=(585, 533))
         webview.start(bind, window, debug=True)

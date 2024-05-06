@@ -3,6 +3,7 @@
 	 height: 170px;
 	 width: 192.1px;
 	 z-index: 20;
+	 transition: opacity 0.2s ease-in-out;
 }
  .ear {
 	 position: absolute;

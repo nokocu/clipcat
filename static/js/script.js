@@ -101,8 +101,7 @@ function processVideo() {
         totalTime: totalTime
     };
 
-    video.style.transition = 'opacity 0.2s ease-in-out';
-    video.style.opacity = '0.3';
+    animationStart(video);
 
     fetch("process_video", {
         method: "POST",
@@ -119,7 +118,7 @@ function processVideo() {
             }, 300);
         } else {
             console.error("Output path is missing in the response");
-            video.style.opacity = '1';
+            endVideoOpacityAnimation(video);
         }
     });
 }
@@ -151,6 +150,7 @@ function handleKeydown(event) {
     // Process keydown events based on the key pressed
     switch (event.key) {
         case 'Escape':
+            animationStart(video);
             const dialog = document.querySelector('.container-dialog');
             event.preventDefault();
             !dialog.classList.contains('hidden') ? hideDialog() : window.location.href = '/cleanup';
@@ -269,15 +269,14 @@ function updateVideoSource(newSource) {
     video.style.minWidth = `${originalWidth}px`;
     video.style.minHeight = `${originalHeight}px`;
     const preloadVideo = document.createElement('video');
-    video.style.transition = 'opacity 0.2s ease-in-out';
-    video.style.opacity = '0';
     preloadVideo.src = newSource;
     preloadVideo.load();
     preloadVideo.oncanplaythrough = function() {
         video.src = newSource;
         video.load();
         resetVideoUI();
-        video.style.opacity = '1';
+        animationEnd(video);
+        updateProcessVideoButtonState();
         setTimeout(() => {
             video.style.minWidth = '';
             video.style.minHeight = '';
@@ -299,7 +298,6 @@ function resetVideoUI() {
     backwardButton.disabled = false;
     forwardButton.disabled = false;
     updateSlider();
-    updateProcessVideoButtonState();
 }
 
 // Undo video edit
@@ -343,6 +341,8 @@ function renderVideo() {
     const targetsize = document.getElementById("targetsize").value || 'copy';
     const resolution = document.getElementById("resolution").value || 'copy';
     const framerate = document.getElementById("framerate").value || 'copy';
+    const filename = document.getElementById("filename");
+    const filenameText = filename ? filename.textContent : "rendered_video";
 
     const data = {
         source: source,
@@ -353,6 +353,7 @@ function renderVideo() {
         framerate: framerate,
     };
 
+    animationStart(video);
 
     fetch("render_video", {
         method: "POST",
@@ -367,13 +368,16 @@ function renderVideo() {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        // Assuming the server sends back a file with a .mp4 extension
-        a.download = 'rendered_video.mp4';
+        a.download = `katcut_${filenameText}`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
+        animationEnd(video);
     })
-    .catch(error => console.error('Error downloading the file:', error));
+    .catch(error => {
+        console.error('Error downloading the file:', error);
+        animationEnd(video);
+    });
 }
 
 // Initialize video time update
@@ -530,15 +534,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 })
 
-// loading
-//function toggleLoading() {
-//    const loadingOverlay = document.getElementById('overlay-loading');
-//    if (true) {
-//        loadingOverlay.classList.remove('hidden');
-//    } else {
-//        loadingOverlay.classList.add('hidden');
-//    }
-//}
 
 
 // Waveform
@@ -585,3 +580,32 @@ document.addEventListener('mouseup', function() {
     }
 });
 
+// animations
+function animationStart(video) {
+    video.style.transition = 'opacity 0.2s ease-in-out';
+    video.style.opacity = '0.8';
+    disableInteractions();
+};
+
+function animationEnd(video) {
+    video.style.opacity = '1';
+    enableInteractions();
+};
+
+function disableInteractions() {
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    mainButtons.forEach(button => {
+        button.disabled = true;
+    });
+    const videoSlider = document.getElementById('videoSlider');
+    videoSlider.style.pointerEvents = 'none';
+};
+
+function enableInteractions() {
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    mainButtons.forEach(button => {
+        button.disabled = false;
+    });
+    const videoSlider = document.getElementById('videoSlider');
+    videoSlider.style.pointerEvents = 'auto';
+};

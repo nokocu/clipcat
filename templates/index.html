@@ -15,7 +15,6 @@
     <div id="resizeborder-bottom" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
     <div id="resizeborder-left" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
     <div id="overlay" class="overlay hidden"></div>
-<!--    <div id="overlay-loading" class="overlay-loading"><h3 style="text-loading">Loading...</h3></div>-->
 
     <div class="volume-container" id="volumeSliderContainer" style="display: none;">
         <input class="volume-range" type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.1">
@@ -73,9 +72,9 @@
         <div class="container-both" >
 
             <div class="container-top">
-                <img class="poster-image" src="/static/assets/poster.png">
+                <img class="poster-image" src="/static/assets/poster.png"  id="poster-image">
                 <div class="poster-overlay">
-                    <div class="cat">
+                    <div class="cat" id="cat">
                         <div class="ear ear--left"></div>
                         <div class="ear ear--right"></div>
                         <div class="face">
@@ -88,9 +87,9 @@
                             <div class="muzzle"></div>
                         </div>
                     </div>
-                    <h1>katcut</h1>
-                    <h6 class="index-h6">by nokocu</h6>
-                    <button onclick="chooseFile()" class="btn-index">Browse</button>
+                    <h1 >katcut</h1>
+                    <h6 id="index-text-2" class="index-h6">by nokocu</h6>
+                    <button id="btn-index" onclick="chooseFile()" class="btn-index">Browse</button>
                     <input type="file" id="fileInput" style="display: none;" accept="video/*">
                 </div>
             </div>
