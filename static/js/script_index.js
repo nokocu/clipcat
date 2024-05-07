@@ -106,17 +106,21 @@ document.addEventListener('DOMContentLoaded', function() {
 function animationUploadingStart() {
     const indexText2 = document.getElementById('index-text-2');
     const btnIndex = document.getElementById('btn-index');
+    const containerIndex = document.getElementById('container-index');
 
-    indexText2.textContent = 'uploading...';
-    btnIndex.style.opacity = '0';
+    indexText2.textContent = 'processing...';
+    containerIndex.style.opacity = '0';
+    btnIndex.disabled = true;
 }
 
 function animationUploadingEnd(video) {
     const indexText2 = document.getElementById('index-text-2');
     const btnIndex = document.getElementById('btn-index');
+    const containerIndex = document.getElementById('container-index');
 
     indexText2.textContent = 'by nokocu';
-    btnIndex.style.opacity = '1';
+    containerIndex.style.opacity = '1';
+    btnIndex.disabled = false;
 }
 
 function isValidFileType(file) {
@@ -128,6 +132,8 @@ function isValidFileType(file) {
 function animationInvalid() {
     const indexText2 = document.getElementById('index-text-2');
     const btnIndex = document.getElementById('btn-index');
+    const containerIndex = document.getElementById('container-index');
     indexText2.textContent = 'Unsupported file type. Please select a .mp4, .mkv, or .webm file.';
-    btnIndex.style.opacity = '1';
+    containerIndex.style.opacity = '1';
+    btnIndex.disabled = false;
 }

@@ -1,4 +1,4 @@
-# v0.12
+# v0.13
 from flask import Flask, request, render_template, jsonify, redirect, url_for, session, send_file, Response
 from contextlib import redirect_stdout
 from io import StringIO
@@ -7,6 +7,7 @@ from webview.dom import DOMEventHandler
 from PIL import Image, ImageDraw
 from ctypes import windll, Structure, c_long, byref
 from pymediainfo import MediaInfo
+from math import log
 import threading
 import logging
 import os
@@ -44,7 +45,7 @@ def concat(source_1, source_2, destination):
         temp_txt.write(f"file '{source_2}'\n")
     command = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
     subprocess.run(command)
-    os.remove(temp_txt_path)
+    removing(temp_txt_path)
 
 
 def trim(source, a, b, destination, video_length):
@@ -63,8 +64,8 @@ def trim(source, a, b, destination, video_length):
         command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
         subprocess.run(command)
         concat(temp_a_path, temp_b_path, destination)
-        os.remove(temp_a_path)
-        os.remove(temp_b_path)
+        removing(temp_a_path)
+        removing(temp_b_path)
     elif a == "00:00.000":
         command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
         subprocess.run(command)
@@ -123,6 +124,9 @@ def render(src, ext, qual, size, res, fps):
             cmd.extend(['-c:v', 'libx264', '-c:a', 'aac'])
     elif src_ext == '.webm' and ext in ['.mp4', '.mkv']:
         cmd.extend(['-c:v', 'libsvtav1', '-preset', preset_handler(qual, "libx264"), '-c:a', 'libopus'])
+    else:
+        cmd.extend(['-c', 'copy'])
+        ext = src_ext
 
     # filesize changer
     if size != "copy":
@@ -141,7 +145,7 @@ def render(src, ext, qual, size, res, fps):
             else:
                 cmd.extend(['-b:v', f'{target_bitrate:.0f}k', '-bufsize', f'{target_bitrate:.0f}k', '-maxrate', f'{target_bitrate:.0f}k'])
         except ValueError:
-            pass
+            size = "copy"
 
     # resolution changer
     if res != "copy":
@@ -174,9 +178,10 @@ def render(src, ext, qual, size, res, fps):
             if target_frame_rate < current_frame_rate:
                 cmd.extend(['-r', str(fps)])
         except ValueError:
-            pass
+            fps = "copy"
 
     cmd.append(out)
+    logger.info(f"[render] {ext=}, {size=}, {res=}, {fps=}")
     logger.info(f"[render]: executing: ({' '.join(cmd)})")
     subprocess.run(cmd)
     elapsed_time = time.time() - start_time
@@ -190,36 +195,52 @@ def home():
 
 @app.route('/undo', methods=['POST'])
 def handle_undo():
-    if undo_stack:
-        last_state = undo_stack.pop()
-        redo_stack.append(last_state)
-        video_path = f"/video/{os.path.basename(last_state)}"
-        log_stack()
-        return jsonify({'success': True, 'message': f"Reverted to {last_state}", 'video_path': video_path})
-    else:
+    data = request.get_json()
+    current_video = data.get('currentVideo')
+    current_video = current_video.split("/video")[1]
+    current_video = os.path.join(temp_dir_path, f"{current_video.split('/')[-1]}")
+
+    if 'undo_stack' not in session or not session['undo_stack']:
         logger.info("[handle_undo] Undo stack is empty")
         return jsonify({'success': False, 'error': 'No more actions to undo'})
 
+    push_current_state_to_redo(current_video)
+
+    last_state = session['undo_stack'].pop()
+    session["src_to_wave"] = last_state
+
+    log_stack()
+
+    video_path = f"/video/{os.path.basename(last_state)}"
+    return jsonify({'success': True, 'message': f"Reverted to {last_state}", 'video_path': video_path})
 
 @app.route('/redo', methods=['POST'])
 def handle_redo():
-    if redo_stack:
-        last_state = redo_stack.pop()
-        undo_stack.append(last_state)
-        video_path = f"/video/{os.path.basename(last_state)}"
-        log_stack()
-        return jsonify({'success': True, 'message': f"Restored {last_state}", 'video_path': video_path})
-    else:
+    data = request.get_json()
+    current_video = data.get('currentVideo')
+    current_video = current_video.split("/video")[1]
+    current_video = os.path.join(temp_dir_path, f"{current_video.split('/')[-1]}")
+
+    if 'redo_stack' not in session or not session['redo_stack']:
         logger.info("[handle_redo] Redo stack is empty")
         return jsonify({'success': False, 'error': 'No more actions to redo'})
 
+    push_current_state_to_undo(current_video)
+
+    last_state = session['redo_stack'].pop()
+    session["src_to_wave"] = last_state
+
+    log_stack()
+
+    video_path = f"/video/{os.path.basename(last_state)}"
+    return jsonify({'success': True, 'message': f"Restored {last_state}", 'video_path': video_path})
 
 @app.route('/cleanup', methods=['GET'])
 def cleanup_and_home():
     thread = threading.Thread(target=cleanup_temp_dir)
     thread.start()
-    undo_stack.clear()
-    redo_stack.clear()
+    session['undo_stack'].clear()
+    session['redo_stack'].clear()
     return redirect(url_for('home'))
 
 
@@ -229,7 +250,8 @@ def editor():
     file_name = session.get('file_name', 'Default Video')
     file_name_ext = os.path.splitext(file_name)[1]
     directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
-
+    session['undo_stack'] = []
+    session['redo_stack'] = []
     if request.method == 'POST':
         video_file = request.files['video_file']
         if video_file and allowed_file(video_file.filename):
@@ -254,7 +276,7 @@ def editor():
     video_path = f"/video/main{file_name_ext}?v={timestamp}"
     width, height, fps = metadata(directory)
     logger.info(f"[editor] Booting up template with filename: {file_name}")
-    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name_noext=file_name_noext)
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name)
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
@@ -273,6 +295,10 @@ def process_video():
     push_current_state_to_undo(source_to_trim)
     log_stack()
     trim(source_to_trim, anchor1, anchor2, output_from_trim, video_length)
+
+    for file in session['redo_stack']:
+        removing(file)
+    session['redo_stack'].clear()
 
     response_data = {"output": "/video/" + os.path.basename(output_from_trim)}
     return jsonify(response_data)
@@ -323,7 +349,6 @@ def render_video():
     resolution = data.get("resolution")
     framerate = data.get("framerate")
     quality = data.get("quality")
-    logger.info(f"[render_video] {extension=}, {targetsize =}, {resolution=}, {framerate=}")
     video_filename = data.get("source").split('/')[-1].split('?')[0]
     source = os.path.join(temp_dir_path, f"{video_filename}")
 
@@ -372,88 +397,119 @@ def waveform(video_path):
     width = request.args.get('width', default=918)
     audio_path = extract_audio(session["src_to_wave"])
     waveform_image = generate_waveform(audio_path, width)
-    os.remove(audio_path)
     return jsonify({'image': waveform_image})
 
 # misc ################################################################################################################
-undo_stack = []
-redo_stack = []
 
 def push_current_state_to_undo(video_path):
-    global undo_stack
-    undo_stack.append(video_path)
-
+    if 'undo_stack' not in session:
+        session['undo_stack'] = []
+    if len(session['undo_stack']) >= 4:
+        oldest_path = session['undo_stack'].pop(0)
+        if oldest_path not in session['redo_stack']:
+            removing(oldest_path)
+    session['undo_stack'].append(video_path)
 
 def push_current_state_to_redo(video_path):
-    global redo_stack
-    redo_stack.append(video_path)
+    if 'redo_stack' not in session:
+        session['redo_stack'] = []
+    if len(session['redo_stack']) >= 4:
+        oldest_path = session['redo_stack'].pop(0)
+        if oldest_path not in session['undo_stack']:
+            removing(oldest_path)
+    session['redo_stack'].append(video_path)
 
 
 def cleanup_temp_dir():
     for filename in os.listdir(temp_dir_path):
         file_path = os.path.join(temp_dir_path, filename)
         if os.path.isfile(file_path):
-            while True:
-                try:
-                    os.remove(file_path)
-                    logger.info(f"[cleanup_temp_dir] File {file_path} removed successfully.")
-                    break
-                except Exception as e:
-                    logger.error(f"[cleanup_temp_dir] Failed to remove {file_path}: {e}." )
-                    logger.error(f"[cleanup_temp_dir] Retrying...")
-                    time.sleep(2)
-                    break
+            removing(file_path)
 
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'mp4', 'mkv', 'webm'}
 
+
+
 def generate_waveform(audio_path, width):
     width = int(width)
+
     with wave.open(audio_path, 'r') as wave_file:
         n_frames = wave_file.getnframes()
         frames = wave_file.readframes(n_frames)
         sample_width = wave_file.getsampwidth()
-    step = max(1, len(frames) // (width * sample_width))
-    amplitude = []
-    for i in range(0, len(frames), step * sample_width):
-        if sample_width == 2:
-            amp = abs(int.from_bytes(frames[i:i+2], byteorder='little', signed=True))
-        elif sample_width == 1:
-            amp = abs(int.from_bytes(frames[i:i+1], byteorder='little', signed=False) - 128)
-        amplitude.append(amp)
-    max_amp = max(amplitude, default=1)
-    norm_amp = [int((17 * amp) / max_amp) for amp in amplitude]
+        step = max(1, len(frames) // (width * sample_width))
+        amplitude = []
 
-    if len(norm_amp) > width:
-        norm_amp = norm_amp[:width]
-    elif len(norm_amp) < width:
-        norm_amp += [0] * (width - len(norm_amp))
+        for i in range(0, len(frames), step * sample_width):
+            if sample_width == 2:
+                amp = abs(int.from_bytes(frames[i:i+2], byteorder='little', signed=True))
+            elif sample_width == 1:
+                amp = abs(int.from_bytes(frames[i:i+1], byteorder='little', signed=False) - 128)
+            amplitude.append(amp)
 
-    img = Image.new('RGBA', (width, 34), (255, 255, 255, 0))
-    draw = ImageDraw.Draw(img)
-    color = (43, 45, 51, 255)
+        smoothing = 3
+        smoothed_amplitude = []
+        for i in range(len(amplitude)):
+            if i < smoothing:
+                smoothed_amplitude.append(amplitude[i])
+            else:
+                avg_amp = sum(amplitude[i-smoothing:i]) / smoothing
+                smoothed_amplitude.append(avg_amp)
 
-    for i, amp in enumerate(norm_amp):
-        draw.line([(i, 17 - amp), (i, 17 + amp)], fill=color)
+        max_amp = max(smoothed_amplitude, default=1)
+        try:
+            norm_amp = [int(20 * (log(amp + 1) / log(max_amp + 1)) ** 4) for amp in smoothed_amplitude]
+        except ZeroDivisionError:
+            norm_amp = [1 for amp in smoothed_amplitude]
 
+        if len(norm_amp) > width:
+            norm_amp = norm_amp[:width]
+        elif len(norm_amp) < width:
+            norm_amp += [0] * (width - len(norm_amp))
 
-    path = os.path.join(temp_dir_path, "waveform.png")
-    img.save(path)
-    with open(path, "rb") as f:
-        encoded = base64.b64encode(f.read()).decode('utf-8')
-    return encoded
+        img = Image.new('RGBA', (width, 34), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(img)
+        color = (255, 255, 255, 175)
+
+        for i, amp in enumerate(norm_amp):
+            draw.line([(i, 17 - amp), (i, 17 + amp)], fill=color)
+
+        path = os.path.join(temp_dir_path, "waveform.png")
+        img.save(path)
+
+        with open(path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode('utf-8')
+
+        return encoded
 
 
 def extract_audio(video_path):
     audio_path = os.path.join(temp_dir_path, "temp_audio.wav")
-    command = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y']
-    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    command = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y', '-v', "error"]
+    subprocess.run(command)
     return audio_path
 
 def log_stack():
-    logger.info(f"[log_stack] Undo Stack: {undo_stack}")
-    logger.info(f"[log_stack] Redo Stack: {redo_stack}")
+    logger.info(f"[log_stack] Undo Stack: {session['undo_stack']}")
+    logger.info(f"[log_stack] Redo Stack: {session['redo_stack']}")
+
+def removing(path):
+    while True:
+        try:
+            os.remove(path)
+            logger.info(f"[removing] File {path} removed successfully.")
+            break
+        except FileNotFoundError:
+            logger.info(f"[removing] File {path} doesn't exist. Ignoring...")
+            break
+        except Exception as e:
+            logger.error(f"[removing] Failed to remove {path}: {e}.")
+            logger.error(f"[removing] Retrying...")
+            time.sleep(2)
+            break
+
 
 # pywebview stuff ######################################################################################################
 
@@ -531,7 +587,7 @@ if __name__ == '__main__':
     atexit.register(cleanup_temp_dir)
     with redirect_stdout(stream):
         api_instance = API()
-        window = webview.create_window('katcut', app, width=1018, height=803,
+        window = webview.create_window('clipcat', app, width=1018, height=803,
                                        frameless=True, easy_drag=False, js_api=api_instance,
                                        background_color='#33363d', shadow=True, min_size=(585, 533))
         webview.start(bind, window, debug=True)

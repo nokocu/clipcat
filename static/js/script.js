@@ -22,10 +22,7 @@ document.getElementById("mediaProcess").addEventListener("click", processVideo);
 document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
 document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
 document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
-video.addEventListener('loadedmetadata', function() {
-    const source = video.currentSrc.substring(window.location.origin.length);
-    updateWaveform(source);
-});
+
 video.addEventListener('ended', function() {
     playButton.innerHTML = getSVG('play');
 });
@@ -156,23 +153,27 @@ function handleKeydown(event) {
             !dialog.classList.contains('hidden') ? hideDialog() : window.location.href = '/cleanup';
             break;
         case 'z':
+        case 'Z':
             if (event.ctrlKey) {
                 event.preventDefault();
-                undoVideoEdit();
+                undoVideoEdit(video.currentSrc.substring(window.location.origin.length));
             }
             break;
         case 'y':
+        case 'Y':
             if (event.ctrlKey) {
                 event.preventDefault();
-                redoVideoEdit();
+                redoVideoEdit(video.currentSrc.substring(window.location.origin.length));
             }
             break;
         case 's':
+        case 'S':
             if (event.ctrlKey) {
                 document.getElementById("saveButton").click();
             }
             break;
         case 'w':
+        case 'W':
             if (event.ctrlKey) {
                 event.preventDefault();
                 window.location.href = '/cleanup';
@@ -186,14 +187,15 @@ function handleKeydown(event) {
             break;
         case 'x':
         case 'X':
-        case 'Delete':
             document.getElementById("mediaProcess").click();
             break;
         case 'a':
+        case 'A':
         case 'ArrowLeft':
             document.getElementById("backwardButton").click();
             break;
         case 'd':
+        case 'D':
         case 'ArrowRight':
             document.getElementById("forwardButton").click();
             break;
@@ -202,7 +204,6 @@ function handleKeydown(event) {
             document.getElementById("playButton").click();
             break;
         default:
-            // Handle other keys or default case if needed
             break;
     }
 }
@@ -277,6 +278,7 @@ function updateVideoSource(newSource) {
         resetVideoUI();
         animationEnd(video);
         updateProcessVideoButtonState();
+        updateWaveform(newSource);
         setTimeout(() => {
             video.style.minWidth = '';
             video.style.minHeight = '';
@@ -301,33 +303,44 @@ function resetVideoUI() {
 }
 
 // Undo video edit
-function undoVideoEdit() {
-    fetch('/undo', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateVideoSource(data.video_path);
-            } else {
-                console.log('[script.js undoVideoEdit]  Undo failed:', data.error);
-            }
-        })
-        .catch(error => console.error('Error:', error));
+function undoVideoEdit(currentVideoSource) {
+    fetch('/undo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ currentVideo: currentVideoSource })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateVideoSource(data.video_path);
+        } else {
+            console.log('[script.js undoVideoEdit] Undo failed:', data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
 }
 
 // Redo video edit
-function redoVideoEdit() {
-    fetch('/redo', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                updateVideoSource(data.video_path);
-            } else {
-                console.log('[script.js redoVideoEdit]  Redo failed:', data.error);
-            }
-        })
-        .catch(error => console.error('Error:', error));
+function redoVideoEdit(currentVideoSource) {
+    fetch('/redo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ currentVideo: currentVideoSource })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateVideoSource(data.video_path);
+        } else {
+            console.log('[script.js redoVideoEdit] Redo failed:', data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
 }
-
 // Volume default value
 document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('videoToClip');
@@ -368,7 +381,14 @@ function renderVideo() {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = `katcut_${filenameText}`;
+
+        if (extension !== 'copy') {
+            const filenameBase = filenameText.replace(/\.[^/.]+$/, ""); // Remove existing extension if any
+            a.download = `clipcat_${filenameBase}${extension}`;
+        } else {
+            a.download = `clipcat_${filenameText}`;
+        }
+
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -391,7 +411,7 @@ volumeButton.addEventListener("mouseenter", () => {
     volumeSliderContainer.style.display = "block";
     // Adjust position
     volumeSliderContainer.style.left = `${rect.left + 21}px`;
-    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 15}px`;
+    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 13}px`;
 });
 volumeButton.addEventListener("mouseleave", () => {
     setTimeout(() => {
@@ -402,6 +422,9 @@ volumeSliderContainer.addEventListener("mouseenter", () => isHovering = true);
 volumeSliderContainer.addEventListener("mouseleave", () => {
     isHovering = false;
     if (!volumeButton.matches(":hover")) volumeSliderContainer.style.display = "none";
+});
+volumeSlider.addEventListener("input", function() {
+    video.volume = volumeSlider.value;
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -535,21 +558,6 @@ document.addEventListener('DOMContentLoaded', function() {
 })
 
 
-
-// Waveform
-function updateWaveform(newSource) {
-    const waveformContainer = document.getElementById('waveform');
-    const waveformWidth = waveformContainer.clientWidth;
-
-    // Fetch and update waveform
-    fetch(`/waveform/${newSource}?width=${waveformWidth}`)
-        .then(response => response.json())
-        .then(data => {
-            waveformContainer.style.backgroundImage = `url(data:image/png;base64,${data.image})`;
-        })
-        .catch(err => console.error('Error loading waveform:', err));
-}
-
 // holding lmb stopping playback during seeking
 let isDragging = false;
 let wasPlayingBeforeDrag = false;
@@ -583,15 +591,13 @@ document.addEventListener('mouseup', function() {
 // animations
 function animationStart(video) {
     video.style.transition = 'opacity 0.2s ease-in-out';
-    video.style.opacity = '0.8';
+    video.style.opacity = '0.5';
     disableInteractions();
 };
-
 function animationEnd(video) {
     video.style.opacity = '1';
     enableInteractions();
 };
-
 function disableInteractions() {
     const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
     mainButtons.forEach(button => {
@@ -600,7 +606,6 @@ function disableInteractions() {
     const videoSlider = document.getElementById('videoSlider');
     videoSlider.style.pointerEvents = 'none';
 };
-
 function enableInteractions() {
     const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
     mainButtons.forEach(button => {
@@ -609,3 +614,95 @@ function enableInteractions() {
     const videoSlider = document.getElementById('videoSlider');
     videoSlider.style.pointerEvents = 'auto';
 };
+
+// Waveform
+function updateWaveform(newSource) {
+    const waveformContainer = document.getElementById('waveform');
+    const waveformWidth = waveformContainer.clientWidth;
+    if (newSource.startsWith('/')) {
+        newSource = newSource.substring(1);
+    }
+    const [basePath, queryParams] = newSource.split('?');
+    const encodedBasePath = encodeURIComponent(basePath);
+    const url = `/waveform/${encodedBasePath}` + (queryParams ? `?${queryParams}&` : '?') + `width=${waveformWidth}`;
+    fetch(url)
+    .then(response => response.json())
+    .then(data => {
+        waveformContainer.style.backgroundImage = `url(data:image/png;base64,${data.image})`;
+    })
+    .catch(err => console.error('Error loading waveform:', err));
+}
+
+// Waveform inital update
+document.addEventListener('DOMContentLoaded', function() {
+    function onMetadataLoaded() {
+        const src = video.currentSrc.substring(window.location.origin.length);
+        updateWaveform(src);
+        video.removeEventListener('loadedmetadata', onMetadataLoaded);
+    }
+    video.addEventListener('loadedmetadata', onMetadataLoaded);
+});
+
+// Waveform resize update
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        const src = video.currentSrc.substring(window.location.origin.length);
+        updateWaveform(src);
+    }, 250);
+});
+
+// Render input validation
+document.addEventListener("DOMContentLoaded", function() {
+    const saveButton = document.getElementById('saveButton');
+    const targetSize = document.getElementById('targetsize');
+    const frameRate = document.getElementById('framerate');
+    const resolution = document.getElementById('resolution');
+    const extension = document.getElementById('extension');
+
+    // Event listeners for input changes
+    targetSize.addEventListener('input', validateInputs);
+    frameRate.addEventListener('input', validateInputs);
+    resolution.addEventListener('input', validateInputs);
+    extension.addEventListener('input', validateInputs);
+
+    function validateInputs() {
+        const isTargetSizeValid = isValidPositiveNumber(targetSize.value) || isEmpty(targetSize.value);
+        const isFrameRateValid = isValidPositiveNumber(frameRate.value) || isEmpty(frameRate.value);
+        const isResolutionValid = isValidResolution(resolution.value) || isEmpty(resolution.value);
+        const isExtensionValid = isValidExtension(extension.value) || isEmpty(extension.value);
+
+        // Disable the save button if any validation fails
+        saveButton.disabled = !(isTargetSizeValid && isFrameRateValid && isResolutionValid && isExtensionValid);
+    }
+
+    function isEmpty(value) {
+        return value.trim() === "";
+    }
+
+    function isValidPositiveNumber(value) {
+        if (isEmpty(value)) return true;
+        const number = parseFloat(value);
+        return !isNaN(number) && number > 0;
+    }
+
+    function isValidResolution(value) {
+        if (isEmpty(value)) return true;
+        const regex = /^(\d+)x(\d+)$/;
+        if (regex.test(value)) {
+            const match = value.match(regex);
+            const width = parseInt(match[1], 10);
+            const height = parseInt(match[2], 10);
+            return width >= 1 && height >= 1 && width <= 7680 && height <= 4320;
+        }
+        return false;
+    }
+
+    function isValidExtension(value) {
+        if (isEmpty(value)) return true;
+        const allowedExtensions = ['.mp4', '.mkv', '.webm'];
+        return allowedExtensions.includes(value.toLowerCase());
+    }
+});
+

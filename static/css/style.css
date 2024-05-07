@@ -2,9 +2,10 @@
   --bg: #33363d;
   --dark: #2b2d33;
   --yel: #ffc63d;
-  --grey: #5e6c82;
-  --debug: #3cff00;
-  --greyer: #465264;
+  --grey: #33363d;
+  --greydialog: #3d4149;
+  --whitenot: #bcbdbf;
+  --select: #ffffff46;
 }
 
 html, body {
@@ -55,9 +56,9 @@ button:focus {
 
 .video-slider {
     position: relative;
-    z-index: 0;
+    z-index: 2;
     -webkit-appearance: none;
-    background-color: var(--grey);
+    background-color: transparent;
     border-radius: 0px;
     overflow: hidden;
     height: 37px;
@@ -72,7 +73,7 @@ button:focus {
     width: 0px;
     height: 44px;
     cursor: pointer;
-    border-right: 2px solid white;
+    border-right: 2px solid var(--yel);
     z-index: 3;
 }
 
@@ -82,7 +83,7 @@ button:focus {
     width: 0px;
     height: 44px;
     cursor: pointer;
-    border-right: 2px solid white;
+    border-right: 2px solid var(--yel);
     z-index: 2;
 }
 
@@ -93,13 +94,7 @@ button:focus {
 .video-slider::-webkit-slider-runnable-track {
     position: relative;
     z-index: 1;
-	background: linear-gradient(to right, transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%), transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%));
-}
-
-.video-slider::-moz-range-track {
-    position: relative;
-    z-index: 1;
-	background: linear-gradient(to right, transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--yel) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%), transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%));
+	background: linear-gradient(to right, transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--select) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--select) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%), transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%));
 }
 
 
@@ -119,7 +114,7 @@ button:focus {
 }
 
 .btn-secondary:hover {
-    background-color: var(--yel);
+    background-color: var(--whitenot);
 }
 
 .btn-secondary:disabled:hover {
@@ -132,7 +127,7 @@ button:focus {
     height: 37px;
 	width: 43px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: filter 0.3s;
 }
 
 .btn-main:disabled {
@@ -140,32 +135,17 @@ button:focus {
 }
 
 .btn-main:hover {
-    background-color: var(--grey);
+    filter: saturate(0);
 }
 
 .btn-main:disabled:hover {
     background-color: var(--yel);
 }
 
-.btn-index {
-    margin-top: 1rem;
-    border-radius: 5px;
-    background-color: var(--yel);
-    border: none;
-    height: 37px;
-	width: 73px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.btn-index:hover {
-    background-color: var(--grey);
-}
-
 .text-secondary{
 	padding: 0.9rem 0rem 0.9rem 0rem;
 	font-size: 0.75rem;
-	color: var(--grey);
+	color: var(--whitenot);
 }
 
 .text-main{
@@ -179,6 +159,7 @@ button:focus {
     height: auto;
     position: relative;
     z-index: 1;
+    opacity: 0;
 }
 
 .poster-overlay {
@@ -210,7 +191,6 @@ button:focus {
 
 .container-bottom {
     position: relative;
-    background-image: url(/static/assets/logo.png);
     background-position: 2rem 92rem;
     margin-top: 1rem;
     padding-top: 1rem;
@@ -223,7 +203,8 @@ button:focus {
 .container-bottom-A {
     position: relative;
     box-sizing: border-box;
-	background-color: var(--dark);
+    background-color: transparent;
+    height: 37px;
 }
 
 .container-bottom-B {
@@ -243,6 +224,12 @@ button:focus {
     justify-content: left;
 	overflow: hidden;
 	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.3s;
+}
+
+div#container-config {
+    z-index: 4;
+    position: relative;
 }
 
 .container-title-btns {
@@ -273,7 +260,7 @@ button:focus {
     background-color: var(--grey);
     display: grid;
     border-radius: 5px;
-    z-index: 3;
+    z-index: 6;
     width: 100%;
     box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.1);
 }
@@ -283,7 +270,7 @@ button:focus {
     color: white;
     border: none;
     border-radius: 5px;
-    background-color: var(--greyer);
+    background-color: var(--greydialog);
     height: 37px;
     cursor: pointer;
     transition: background-color 0.3s;
@@ -297,7 +284,7 @@ button:focus {
 }
 
 .container-dialog-label {
-    padding-bottom: 5px;
+    padding: 10px;
     display: flex;
     align-items: center;
 }
@@ -333,6 +320,7 @@ button:focus {
 
 .text-titlebar {
     margin: 0rem 0.2rem 0rem 0rem;
+    color: white;
 }
 
 .titlebar-icon {
@@ -351,20 +339,14 @@ button:focus {
     transition: opacity 0.1s ease-in-out;
 }
 
-
-
 .overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    /* background-color: rgba(0, 0, 0, 0.5); */
-    z-index: 3;
-    animation: fadeIn 0.3s;
+    z-index: 4;
 }
-
-
 
 .text-dialog{
 	font-size: 0.75rem;
@@ -398,37 +380,6 @@ button:focus {
     width: 80px;
     height: 40px;
     transform: translate(-50%, -100%);
-}
-
-
-.btn-single-secondary {
-	color: white;
-    background-color: var(--grey);
-    border: none;
-    min-height: 37px;
-	min-width: 43px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    position: relative;
-    border-radius: 5px;
-}
-
-.btn-single-secondary:hover {
-    background-color: var(--yel);
-}
-
-.btn-single-main {
-    background-color: var(--yel);
-    border: none;
-    min-height: 37px;
-	min-width: 43px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    border-radius: 5px;
-}
-
-.btn-single-main:hover {
-    background-color: var(--grey);
 }
 
 textarea:focus, input:focus{
@@ -488,6 +439,7 @@ textarea:focus, input:focus{
     background-size: 100% 100%;
     background-position: center;
     pointer-events: none;
+    filter: drop-shadow(0.1rem 0.1rem 0.1rem #1a1a1a);
 }
 
 .resize-border {
@@ -527,9 +479,6 @@ textarea:focus, input:focus{
     cursor: w-resize;
 }
 
-.hidden {
-    display: none;
-}
 
 .color-overlay {
     position: absolute;
@@ -537,8 +486,119 @@ textarea:focus, input:focus{
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: white;
+    background-color: black;
     transition: opacity 0.2s ease-in-out;
     pointer-events: none;
     border-radius: 7px;
+}
+
+.fake-waveform {
+    background-image: url(/static/assets/fakewave.png)
+}
+
+.dialog-svg {
+    padding-top: 0;
+}
+
+.cat {
+    position: relative;
+    height: 170px;
+    width: 192.1px;
+    z-index: 20;
+    transition: opacity 0.2s ease-in-out;
+}
+.ear {
+    position: absolute;
+    top: -30%;
+    height: 60%;
+    width: 25%;
+    background: var(--yel);
+}
+
+.ear--left {
+    left: -7%;
+    border-radius: 74% 28% 0% 0% / 100% 100% 0% 0%;
+    transform: rotate(-15deg);
+}
+
+.ear--right {
+    right: -7%;
+    border-radius: 28% 74% 0% 0% / 100% 100% 0% 0%;
+    transform: rotate(15deg);
+}
+
+.face {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    background: var(--dark);
+    border-radius: 40%;
+}
+.eye {
+    position: absolute;
+    top: 35%;
+    height: 30%;
+    width: 31%;
+    background: var(--yel);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+}
+.eye::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 0;
+    width: 100%;
+    border-radius: 0 0 50% 50Array/0Array 0 40% 40%;
+    background: var(--dark);
+    animation: blink 4s infinite ease-in;
+}
+
+@keyframes blink {
+    0% {height: 0;}
+    90% {height: 0;}
+    92.5% {height: 100%;}
+    95% {height: 0;}
+    97.5% {height: 100%;}
+    100% {height: 0;}
+}
+
+.eye--right {
+	 right: 0;
+}
+
+.eye-pupil {
+    position: absolute;
+    top: 25%;
+    height: 50%;
+    width: 20%;
+    background: var(--dark);
+    border-radius: 50%;
+}
+
+.eye--left .eye-pupil {
+	 right: 30%;
+}
+
+.eye--right .eye-pupil {
+	 left: 30%;
+}
+
+.muzzle {
+	 position: absolute;
+	 top: 60%;
+	 left: 50%;
+	 height: 6%;
+	 width: 10%;
+	 background: var(--yel);
+	 transform: translateX(-50%);
+	 border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
+}
+
+.index-text {
+    color: var(--whitenot);
+}
+
+.hidden {
+    display: none;
 }
