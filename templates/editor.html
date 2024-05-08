@@ -13,42 +13,62 @@
     <div id="resizeborder-bottom" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
     <div id="overlay" class="overlay hidden"></div>
 
-    <div class="volume-container" id="volumeSliderContainer" style="display: none;">
+    <div class="container-volume" id="volumeSliderContainer" style="display: none;">
         <input class="volume-range" type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.1">
     </div>
 
     <div id="dialogFilesize" class="container-dialog hidden">
         <div class="container-dialog-label">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path d="M12.5 0H5.914a1.5 1.5 0 0 0-1.06.44L2.439 2.853A1.5 1.5 0 0 0 2 3.914V14.5A1.5 1.5 0 0 0 3.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 12.5 0m-7 2.75a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m2 0a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m2.75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 1.5 0m1.25-.75a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75"/></svg>
-            <h6 class="text-label"><span>Filesize (mb)</span></h6>
+            <h6 class="text-label"><span>Max filesize</span></h6>
         </div>
-        <input class="input" type="text" id="targetsize" value="" placeholder="Default">
+        <button class="btn-dialog" id="targetsize1" value="1024"><span class="text-colored">1GB</span>   TikTok</button>
+        <button class="btn-dialog" id="targetsize2" value="512"><span class="text-colored">512MB</span> X/Twitter</button>
+        <button class="btn-dialog" id="targetsize3" value="250"><span class="text-colored">250MB</span> Streamable</button>
+        <button class="btn-dialog" id="targetsize4" value="100"><span class="text-colored">100MB</span> Instagram</button>
+        <button class="btn-dialog" id="targetsize5" value="25"><span class="text-colored">25MB</span>  Discord</button>
+        <input  class="input-dialog" id="targetsizeC" type="text" value="" placeholder="Custom...">
     </div>
 
     <div id="dialogResfps" class="container-dialog hidden">
-        <div class="container-dialog-A">
-            <div class="container-dialog-label">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path d="M0 1a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1zm4 0v6h8V1zm8 8H4v6h8zM1 1v2h2V1zm2 3H1v2h2zM1 7v2h2V7zm2 3H1v2h2zm-2 3v2h2v-2zM15 1h-2v2h2zm-2 3v2h2V4zm2 3h-2v2h2zm-2 3v2h2v-2zm2 3h-2v2h2z"/></svg>
-                <h6 class="text-label"><span>Framerate (FPS)</span></h6>
-            </div>
-            <input class="input" type="text" id="framerate" value="" placeholder="Default">
+        <div class="container-dialog-label">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path d="M10.53 5.968h-.843v4.06h.843c1.117 0 1.622-.667 1.622-2.02 0-1.354-.51-2.04-1.622-2.04"/><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm5.396 3.001V11H6.209V8.43H3.687V11H2.5V5.001h1.187v2.44h2.522V5h1.187zM8.5 11V5.001h2.188c1.824 0 2.685 1.09 2.685 2.984C13.373 9.893 12.5 11 10.69 11z"/></svg>
+            <h6 class="text-label"><span>Resolution</span></h6>
         </div>
-        <div class="container-dialog-A">
-            <div class="container-dialog-label">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path d="M10.53 5.968h-.843v4.06h.843c1.117 0 1.622-.667 1.622-2.02 0-1.354-.51-2.04-1.622-2.04"/><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm5.396 3.001V11H6.209V8.43H3.687V11H2.5V5.001h1.187v2.44h2.522V5h1.187zM8.5 11V5.001h2.188c1.824 0 2.685 1.09 2.685 2.984C13.373 9.893 12.5 11 10.69 11z"/></svg>
-                <h6 class="text-label"><span>Resolution (px)</span></h6>
-            </div>
-            <input class="input" type="text" id="resolution" value="" placeholder="Default">
-        </div>
+        <button class="btn-dialog" id="resolution1" value="3840x2160"><span class="text-colored">4K</span> 3840x2160px</button>
+        <button class="btn-dialog" id="resolution2" value="2560x1440"><span class="text-colored">1440p</span> 2560x1440px</button>
+        <button class="btn-dialog" id="resolution3" value="1920x1080"><span class="text-colored">1080p</span> 1920x1080px</button>
+        <button class="btn-dialog" id="resolution4" value="1280x720"><span class="text-colored">720p</span> 1280x720px</button>
+        <input  class="input-dialog" id="resolutionC" type="text" placeholder="Custom...">
     </div>
-
 
     <div id="dialogExtension" class="container-dialog hidden">
         <div class="container-dialog-label">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path fill-rule="evenodd" d="M14 4.5V14a2 2 0 0 1-2 2v-1a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM.706 15.849v-2.66h.038l.952 2.16h.516l.946-2.16h.038v2.66h.715V11.85h-.8l-1.14 2.596h-.026L.805 11.85H0v3.999zm5.278-3.999h-1.6v3.999h.792v-1.342h.803q.43 0 .732-.173.304-.175.463-.474a1.4 1.4 0 0 0 .161-.677q0-.375-.158-.677a1.2 1.2 0 0 0-.46-.477 1.4 1.4 0 0 0-.733-.179m.545 1.333a.8.8 0 0 1-.085.38.57.57 0 0 1-.237.241.8.8 0 0 1-.375.082h-.66V12.48h.66q.329 0 .513.181.184.183.184.522m1.505-.032q.4-.65.791-1.301h1.14v2.62h.49v.638h-.49v.741h-.741v-.741H7.287v-.648q.353-.66.747-1.31Zm-.029 1.298v.02h1.219v-2.021h-.041q-.302.477-.607.984-.3.507-.571 1.017"/></svg>
-            <h6 class="text-label"><span>Extension (.mp4, .mkv, .webm)</span></h6>
+            <h6 class="text-label"><span>Extension</span></h6>
         </div>
-        <input class="input" type="text" id="extension" value="" placeholder="Default">
+        <button class="btn-dialog" id="extension1" value=".mp4">.mp4</button>
+        <button class="btn-dialog" id="extension2" value=".mkv">.mkv</button>
+        <button class="btn-dialog" id="extension3" value=".webm">.webm</button>
+    </div>
+
+    <div id="dialogPresets" class="container-dialog hidden">
+        <div class="container-dialog-label">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="dialog-svg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M9.05 3a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0V3zM4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M2.05 8a2.5 2.5 0 0 1 4.9 0H16v1H6.95a2.5 2.5 0 0 1-4.9 0H0V8zm9.45 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3m-2.45 1a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0v-1z"/></svg>
+            <h6 class="text-label"><span>Templates</span></h6>
+        </div>
+        <button class="btn-dialog" id="preset1" value="extension1 resolution3 targetsize5"><span class="text-colored">MP4 </span>1080p 25MB</button>
+        <button class="btn-dialog" id="preset2" value="extension1 resolution4 targetsize5"><span class="text-colored">MP4 </span>720p 25MB</button>
+        <button class="btn-dialog" id="preset3" value="extension1 copy targetsize5"><span class="text-colored">MP4 </span>25MB</button>
+        <button class="btn-dialog" id="preset4" value="extension3 resolution3 targetsize5"><span class="text-colored">WEBM </span>1080p 25MB</button>
+        <button class="btn-dialog" id="preset5" value="extension3 resolution4 targetsize5"><span class="text-colored">WEBM </span>720p 25MB</button>
+        <button class="btn-dialog" id="preset6" value="extension3 copy targetsize5"><span class="text-colored">WEBM </span>25MB</button>
+    </div>
+
+    <div class="hidden">
+        <input class="input" type="text" id="targetsize" value="">
+        <input class="input" type="text" id="resolution" value="">
+        <input class="input" type="text" id="extension" value="">
     </div>
 
 
@@ -67,7 +87,6 @@
         </div>
 
         <div class="container-both">
-
             <div class="container-top">
                 <video class="video" id="videoToClip">
                     <source src="{{ video_path }}" type="video/mp4">
@@ -78,8 +97,6 @@
 
 
             <div class="container-bottom">
-
-                
                 <div class="container-bottom-A" id="container-bottom-A">
                     <div class="video-slider" id="videoSliderContainer">
                         <div id="waveform" class="waveform"></div>
@@ -109,17 +126,18 @@
                     </div>
 
                     <div class="container-bottom-B1">
-                        <div class="container-controls" id="container-config" >
+                        <div class="container-controls" id="container-config">
                             <button title="Filesize changer" id="filesizeButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16"><path d="M12.5 0H5.914a1.5 1.5 0 0 0-1.06.44L2.439 2.853A1.5 1.5 0 0 0 2 3.914V14.5A1.5 1.5 0 0 0 3.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 12.5 0m-7 2.75a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m2 0a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m2.75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 1.5 0m1.25-.75a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75"/></svg></button>
-                            <button title="Video properties" id="resfpsButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16"><path d="M0 1a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1zm4 0v6h8V1zm8 8H4v6h8zM1 1v2h2V1zm2 3H1v2h2zM1 7v2h2V7zm2 3H1v2h2zm-2 3v2h2v-2zM15 1h-2v2h2zm-2 3v2h2V4zm2 3h-2v2h2zm-2 3v2h2v-2zm2 3h-2v2h2z"/></svg></button>
+                            <button title="Resolution changer" id="resfpsButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16"><path d="M10.53 5.968h-.843v4.06h.843c1.117 0 1.622-.667 1.622-2.02 0-1.354-.51-2.04-1.622-2.04"/><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm5.396 3.001V11H6.209V8.43H3.687V11H2.5V5.001h1.187v2.44h2.522V5h1.187zM8.5 11V5.001h2.188c1.824 0 2.685 1.09 2.685 2.984C13.373 9.893 12.5 11 10.69 11z"/></svg></button>
                             <button title="Extension changer" id="extensionButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M14 4.5V14a2 2 0 0 1-2 2v-1a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM.706 15.849v-2.66h.038l.952 2.16h.516l.946-2.16h.038v2.66h.715V11.85h-.8l-1.14 2.596h-.026L.805 11.85H0v3.999zm5.278-3.999h-1.6v3.999h.792v-1.342h.803q.43 0 .732-.173.304-.175.463-.474a1.4 1.4 0 0 0 .161-.677q0-.375-.158-.677a1.2 1.2 0 0 0-.46-.477 1.4 1.4 0 0 0-.733-.179m.545 1.333a.8.8 0 0 1-.085.38.57.57 0 0 1-.237.241.8.8 0 0 1-.375.082h-.66V12.48h.66q.329 0 .513.181.184.183.184.522m1.505-.032q.4-.65.791-1.301h1.14v2.62h.49v.638h-.49v.741h-.741v-.741H7.287v-.648q.353-.66.747-1.31Zm-.029 1.298v.02h1.219v-2.021h-.041q-.302.477-.607.984-.3.507-.571 1.017"/></svg></button>
                         </div>
-                        <h6 class="text-secondary"><span id="infoRez">{{ width }} x {{ height }}</span> @ <span id="infoFPS">{{ fps }}</span></h6>
+                         <h6 class="text-secondary"><span id="infoRez">{{ width }} x {{ height }}</span> @ <span id="infoFPS">{{ fps }}</span></h6>
                     </div>
 
                     <div class="container-bottom-B1" style="margin-left: auto">
-                        <div class="container-controls">
+                        <div class="container-controls" id="container-saving">
                             <button id="volumeButton" type="button" class="btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.536 14.01A8.47 8.47 0 0 0 14.026 8a8.47 8.47 0 0 0-2.49-6.01l-.708.707A7.48 7.48 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303z"></path><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.48 5.48 0 0 1 11.025 8a5.48 5.48 0 0 1-1.61 3.89z"></path><path d="M8.707 11.182A4.5 4.5 0 0 0 10.025 8a4.5 4.5 0 0 0-1.318-3.182L8 5.525A3.5 3.5 0 0 1 9.025 8 3.5 3.5 0 0 1 8 10.475zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06"></path></svg></button>
+                            <button title="Presets" id="presetsButton" type="button" class="btn-secondary" onclick=""><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sliders" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M9.05 3a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0V3zM4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M2.05 8a2.5 2.5 0 0 1 4.9 0H16v1H6.95a2.5 2.5 0 0 1-4.9 0H0V8zm9.45 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3m-2.45 1a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0v-1z"/></svg></button>
                             <button title="Save" id="saveButton" type="button" class="btn-main" onclick="renderVideo()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" viewBox="0 0 16 16"><path d="M0 1.5A1.5 1.5 0 0 1 1.5 0H3v5.5A1.5 1.5 0 0 0 4.5 7h7A1.5 1.5 0 0 0 13 5.5V0h.086a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5H14v-5.5A1.5 1.5 0 0 0 12.5 9h-9A1.5 1.5 0 0 0 2 10.5V16h-.5A1.5 1.5 0 0 1 0 14.5z"></path><path d="M3 16h10v-5.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5zm9-16H4v5.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5zM9 1h2v4H9z"></path></svg></button>
                         </div>
                     </div>

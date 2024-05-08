@@ -123,6 +123,7 @@ function animationUploadingEnd(video) {
     btnIndex.disabled = false;
 }
 
+// Validation of upload
 function isValidFileType(file) {
     const validTypes = ['.mp4', '.mkv', '.webm'];
     const fileType = file.name.substring(file.name.lastIndexOf('.'));

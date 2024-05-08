@@ -11,23 +11,28 @@ const videoSlider = document.getElementById("videoSlider");
 
 // Global variables
 let isHovering = false;
+let interactionsEnabled = true;
 const framerate = parseFloat(document.getElementById('infoFPS').textContent || document.getElementById('infoFPS').value);
 
 // Event listeners
-document.addEventListener('keydown', handleKeydown);
-video.addEventListener('timeupdate', updateSlider);
-document.getElementById("mediaA").addEventListener("click", () => setPoint(anchorA, "anchorAValue"));
-document.getElementById("mediaB").addEventListener("click", () => setPoint(anchorB, "anchorBValue"));
-document.getElementById("mediaProcess").addEventListener("click", processVideo);
-document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
-document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
-document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
+document.addEventListener('DOMContentLoaded', initializeEventListeners);
 
-video.addEventListener('ended', function() {
-    playButton.innerHTML = getSVG('play');
-});
+// Initialize all event listeners
+function initializeEventListeners() {
+    document.addEventListener('keydown', handleKeydown);
+    video.addEventListener('timeupdate', updateSlider);
+    document.getElementById("mediaA").addEventListener("click", () => setPoint(anchorA, "anchorAValue"));
+    document.getElementById("mediaB").addEventListener("click", () => setPoint(anchorB, "anchorBValue"));
+    document.getElementById("mediaProcess").addEventListener("click", processVideo);
+    document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
+    document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
+    document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
+    video.addEventListener('ended', () => playButton.innerHTML = getSVG('play'));
+    videoSlider.addEventListener('input', handleSliderInput);
+}
 
-videoSlider.addEventListener('input', function() {
+// Handle slider input to seek video
+function handleSliderInput() {
     const percent = videoSlider.value / 100;
     const newTime = percent * video.duration;
     if (isFinite(newTime)) {
@@ -35,13 +40,9 @@ videoSlider.addEventListener('input', function() {
     } else {
         console.error("Invalid video time:", newTime);
     }
-    if (!isDragging) {  // Only update video time if not dragging
-        video.currentTime = newTime;
-    }
-});
+}
 
-
-// Play/Pause toggle
+// Toggle play/pause for video
 function playPause() {
     if (video.paused) {
         video.play();
@@ -56,7 +57,7 @@ function playPause() {
     }
 }
 
-// Update video time display
+// Update video time display continuously
 function updateVideoTime() {
     const currentTime = formatTime(video.currentTime * 1000);
     const totalTime = isNaN(video.duration) ? "00:00.000" : formatTime(video.duration * 1000);
@@ -65,7 +66,7 @@ function updateVideoTime() {
     requestAnimationFrame(updateVideoTime);
 }
 
-// Skip frames
+// Skip video frames
 function skip(value) {
     if (framerate !== 0 && isFinite(framerate) && isFinite(value)) {
         video.currentTime += 1 / framerate * value;
@@ -74,7 +75,7 @@ function skip(value) {
     }
 }
 
-// Set point A or B
+// Set anchor points for video clipping
 function setPoint(point, anchorId) {
     const currentTime = formatTime(video.currentTime * 1000);
     document.getElementById(anchorId).textContent = currentTime;
@@ -87,7 +88,7 @@ function setPoint(point, anchorId) {
     updateProcessVideoButtonState();
 }
 
-// Process video
+// Process video based on set points
 function processVideo() {
     const video = document.getElementById('videoToClip');
     const totalTime = document.getElementById("totalTime").textContent;
@@ -97,9 +98,7 @@ function processVideo() {
         video: video.currentSrc.substring(window.location.origin.length),
         totalTime: totalTime
     };
-
     animationStart(video);
-
     fetch("process_video", {
         method: "POST",
         headers: {
@@ -120,31 +119,13 @@ function processVideo() {
     });
 }
 
-// Handle keydown events
-document.addEventListener('DOMContentLoaded', function() {
-    // Prevent buttons from taking focus on click
-    const buttons = document.querySelectorAll('button');
-    buttons.forEach(button => {
-        button.addEventListener('mousedown', function(event) {
-            event.preventDefault(); // This keeps the focus from moving to the button on click
-        });
-    });
-
-    // Keydown event handler
-    document.addEventListener('keydown', handleKeydown);
-});
-
+// Handle keydown events globally
 function handleKeydown(event) {
-    // Check if the focused element is an input field
     const activeElement = document.activeElement;
     const isInputFocused = activeElement.tagName === 'INPUT' && activeElement.type === 'text';
-
-    // If an input is focused and Ctrl is not pressed, return unless the key is associated with Ctrl
     if (isInputFocused && !event.ctrlKey) {
         return;
     }
-
-    // Process keydown events based on the key pressed
     switch (event.key) {
         case 'Escape':
             animationStart(video);
@@ -207,13 +188,13 @@ function handleKeydown(event) {
             break;
     }
 }
+// Utility functions
 
 // Format time values
 function formatTime(time) {
     var minutes = Math.floor(time / 60000);
     var seconds = Math.floor((time % 60000) / 1000);
     var milliseconds = Math.floor(time % 1000);
-
     return (minutes < 10 ? "0" + minutes : minutes) + ":" +
            (seconds < 10 ? "0" + seconds : seconds) + "." +
            (milliseconds < 10 ? "00" + milliseconds : milliseconds < 100 ? "0" + milliseconds : milliseconds);
@@ -227,6 +208,8 @@ function getSVG(type) {
     };
     return icons[type] || '';
 }
+
+// Video processing functions
 
 // Update the slider based on video duration
 function updateSlider() {
@@ -242,20 +225,16 @@ function updateProcessVideoButtonState() {
     const anchor2Text = document.getElementById("anchorBValue").textContent;
     const totalTime = document.getElementById("totalTime").textContent;
     const processVideoButton = document.getElementById("mediaProcess");
-
-    // Check if both anchors are the same or if they are at the start and end times
     const disableCondition = (anchor1Text === anchor2Text) ||
                              (anchor1Text === "00:00.000" && anchor2Text === totalTime) ||
                              (anchor1Text === totalTime && anchor2Text === "00:00.000");
-
     processVideoButton.disabled = disableCondition;
-};
+}
 
 // Update video playback time based on slider input
 function updateVideoTimeFromSlider() {
     const percent = videoSlider.value / 100;
     const newTime = percent * video.duration;
-
     if (isFinite(newTime)) {
         video.currentTime = newTime;
     } else {
@@ -263,6 +242,7 @@ function updateVideoTimeFromSlider() {
     }
 }
 
+// Update video source and reset UI
 function updateVideoSource(newSource) {
     const video = document.getElementById('videoToClip');
     const originalWidth = video.offsetWidth;
@@ -286,7 +266,7 @@ function updateVideoSource(newSource) {
     };
 }
 
-
+// Reset video UI to initial state
 function resetVideoUI() {
     const videoSlider = document.getElementById('videoSlider');
     videoSlider.value = 0;
@@ -302,13 +282,11 @@ function resetVideoUI() {
     updateSlider();
 }
 
-// Undo video edit
+// Undo and redo video edits
 function undoVideoEdit(currentVideoSource) {
     fetch('/undo', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentVideo: currentVideoSource })
     })
     .then(response => response.json())
@@ -322,13 +300,10 @@ function undoVideoEdit(currentVideoSource) {
     .catch(error => console.error('Error:', error));
 }
 
-// Redo video edit
 function redoVideoEdit(currentVideoSource) {
     fetch('/redo', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentVideo: currentVideoSource })
     })
     .then(response => response.json())
@@ -341,21 +316,17 @@ function redoVideoEdit(currentVideoSource) {
     })
     .catch(error => console.error('Error:', error));
 }
-// Volume default value
-document.addEventListener('DOMContentLoaded', function() {
-    const video = document.getElementById('videoToClip');
-    video.volume = 0.1;
-});
 
+// Function to render video with specified settings and download it
 function renderVideo() {
     const source = video.currentSrc.substring(window.location.origin.length);
     const extension = document.getElementById("extension").value || 'copy';
     const quality = document.getElementById("quality") ? document.getElementById("quality").value : 'ultrafast';
     const targetsize = document.getElementById("targetsize").value || 'copy';
     const resolution = document.getElementById("resolution").value || 'copy';
-    const framerate = document.getElementById("framerate").value || 'copy';
+    const framerate = document.getElementById("framerate") ? document.getElementById("framerate").value : 'copy';
     const filename = document.getElementById("filename");
-    const filenameText = filename ? filename.textContent : "rendered_video";
+    const filenameText = filename ? filename.textContent : "catclipped";
 
     const data = {
         source: source,
@@ -370,9 +341,7 @@ function renderVideo() {
 
     fetch("render_video", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     })
     .then(response => response.blob())
@@ -383,7 +352,7 @@ function renderVideo() {
         a.href = url;
 
         if (extension !== 'copy') {
-            const filenameBase = filenameText.replace(/\.[^/.]+$/, ""); // Remove existing extension if any
+            const filenameBase = filenameText.replace(/\.[^.]+$/, "");
             a.download = `clipcat_${filenameBase}${extension}`;
         } else {
             a.download = `clipcat_${filenameText}`;
@@ -400,33 +369,37 @@ function renderVideo() {
     });
 }
 
+
 // Initialize video time update
 updateVideoTime();
 
-// Volume slider
+// Volume control
 const volumeButton = document.getElementById("volumeButton");
 const volumeSliderContainer = document.getElementById("volumeSliderContainer");
 volumeButton.addEventListener("mouseenter", () => {
     const rect = volumeButton.getBoundingClientRect();
     volumeSliderContainer.style.display = "block";
-    // Adjust position
     volumeSliderContainer.style.left = `${rect.left + 21}px`;
-    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 13}px`;
+    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 15}px`;
 });
+
 volumeButton.addEventListener("mouseleave", () => {
     setTimeout(() => {
         if (!isHovering) volumeSliderContainer.style.display = "none";
     }, 80);
 });
+
 volumeSliderContainer.addEventListener("mouseenter", () => isHovering = true);
 volumeSliderContainer.addEventListener("mouseleave", () => {
     isHovering = false;
     if (!volumeButton.matches(":hover")) volumeSliderContainer.style.display = "none";
 });
+
 volumeSlider.addEventListener("input", function() {
     video.volume = volumeSlider.value;
 });
 
+// Tab disabled
 document.addEventListener('DOMContentLoaded', function() {
     const buttons = document.querySelectorAll('button');
     buttons.forEach(button => {
@@ -434,89 +407,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// configuration buttons
-const overlay = document.getElementById('overlay');
-const dialogFilesize = document.getElementById('dialogFilesize');
-const dialogResfps = document.getElementById('dialogResfps');
-const dialogExtension = document.getElementById('dialogExtension');
-const containerControls = document.getElementById('container-config');
-document.getElementById('filesizeButton').addEventListener('click', () => showDialogFilesize());
-document.getElementById('resfpsButton').addEventListener('click', () => showDialogResfps());
-document.getElementById('extensionButton').addEventListener('click', () => showDialogExtension());
 
-// Function to show dialog
-function showDialog(dialog) {
-    const anchorPos = containerControls
-    dialog.style.visibility = 'hidden';
-    dialog.classList.remove('hidden');
-    const buttonRect = anchorPos.getBoundingClientRect();
-    const controlsRect = containerControls.getBoundingClientRect(); // Get the dimensions of the container-controls
-
-    // Set the maximum width of the dialog to match the container-controls
-    dialog.style.maxWidth = `${controlsRect.width-10}px`;
-
-    // Calculate and set dialog position
-    dialog.style.top = `${buttonRect.top - dialog.offsetHeight-8}px`;
-    dialog.style.left = `${buttonRect.left + (buttonRect.width / 2) - (dialog.offsetWidth / 2)}px`;
-    dialog.style.visibility = 'visible';
-    overlay.classList.remove('hidden');
-}
-
-function showDialogFilesize() {
-    hideAllDialogs();
-    showDialog(dialogFilesize, 'filesizeButton');
-}
-
-function showDialogResfps() {
-    hideAllDialogs();
-    showDialog(dialogResfps, 'resfpsButton');
-}
-
-function showDialogExtension() {
-    hideAllDialogs();
-    showDialog(dialogExtension, 'extensionButton');
-}
-
-// Hide all dialogs
-function hideAllDialogs() {
-    dialogFilesize.classList.add('hidden');
-    dialogResfps.classList.add('hidden');
-    dialogExtension.classList.add('hidden');
-    overlay.classList.add('hidden');
-}
-
-// Overlay click to hide dialogs
-overlay.addEventListener('click', hideAllDialogs);
-
-// Adjust dialog position on window resize
-window.addEventListener('resize', () => {
-    if (!dialogFilesize.classList.contains('hidden')) {
-        showDialogFilesize();
-    }
-    if (!dialogResfps.classList.contains('hidden')) {
-        showDialogResfps();
-    }
-    if (!dialogExtension.classList.contains('hidden')) {
-        showDialogExtension();
-    }
-});
-
-// Concat with drag and drop
+// Drag and drop functionality
 document.addEventListener('DOMContentLoaded', function() {
     var containerTop = document.querySelector('.container-top');
     var dropArea = document.getElementById('drop_zone');
-
     containerTop.addEventListener('dragover', function(e) {
         this.classList.add('dragging-over');
         e.preventDefault();
     });
-
     containerTop.addEventListener('mouseleave', function(event) {
         this.classList.remove('dragging-over');
     });
-
     dropArea.addEventListener('drop', function(e) {
         e.preventDefault();
+        animationStart(video);
         var formData = new FormData();
         formData.append('file', e.dataTransfer.files[0]);
         fetch('/upload_to_concut', {
@@ -539,13 +444,14 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Damn. For now make sure dragged video has the same extension');
+                throw new Error('Ensure dragged video has the same extension');
             }
             return response.json();
         })
         .then(response => {
             if (response.output) {
                 updateVideoSource(response.output);
+                animationEnd(video);
             } else {
                 console.error("Output path is missing in the response");
             }
@@ -553,15 +459,16 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error("Error:", error);
             alert(error.message);
-            });
+            animationEnd(video);
         });
-})
+    });
+});
 
-
-// holding lmb stopping playback during seeking
+// Handling playback during seeking
 let isDragging = false;
 let wasPlayingBeforeDrag = false;
 videoSlider.addEventListener('mousedown', function() {
+    if (!interactionsEnabled) return;
     isDragging = true;
     wasPlayingBeforeDrag = !video.paused;
     playButton.disabled = true;
@@ -570,6 +477,7 @@ videoSlider.addEventListener('mousedown', function() {
     }
 });
 videoSlider.addEventListener('mouseup', function() {
+    if (!interactionsEnabled) return;
     isDragging = false;
     playButton.disabled = false;
     if (wasPlayingBeforeDrag) {
@@ -577,6 +485,7 @@ videoSlider.addEventListener('mouseup', function() {
     }
 });
 document.addEventListener('mouseup', function() {
+    if (!interactionsEnabled) return;
     if (playButton.disabled) {
         playButton.disabled = false;
     }
@@ -588,34 +497,41 @@ document.addEventListener('mouseup', function() {
     }
 });
 
-// animations
+// Animation functions
 function animationStart(video) {
     video.style.transition = 'opacity 0.2s ease-in-out';
     video.style.opacity = '0.5';
     disableInteractions();
-};
+    hideAllDialogs();
+}
+
 function animationEnd(video) {
     video.style.opacity = '1';
     enableInteractions();
-};
+}
+
 function disableInteractions() {
+    interactionsEnabled = false;
     const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
     mainButtons.forEach(button => {
         button.disabled = true;
     });
     const videoSlider = document.getElementById('videoSlider');
     videoSlider.style.pointerEvents = 'none';
-};
+}
+
 function enableInteractions() {
+    interactionsEnabled = true;
     const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
     mainButtons.forEach(button => {
         button.disabled = false;
     });
     const videoSlider = document.getElementById('videoSlider');
     videoSlider.style.pointerEvents = 'auto';
-};
+}
+// Waveform update functions
 
-// Waveform
+// Update waveform based on the video source
 function updateWaveform(newSource) {
     const waveformContainer = document.getElementById('waveform');
     const waveformWidth = waveformContainer.clientWidth;
@@ -626,14 +542,14 @@ function updateWaveform(newSource) {
     const encodedBasePath = encodeURIComponent(basePath);
     const url = `/waveform/${encodedBasePath}` + (queryParams ? `?${queryParams}&` : '?') + `width=${waveformWidth}`;
     fetch(url)
-    .then(response => response.json())
-    .then(data => {
-        waveformContainer.style.backgroundImage = `url(data:image/png;base64,${data.image})`;
-    })
-    .catch(err => console.error('Error loading waveform:', err));
+        .then(response => response.json())
+        .then(data => {
+            waveformContainer.style.backgroundImage = `url(data:image/png;base64,${data.image})`;
+        })
+        .catch(err => console.error('Error loading waveform:', err));
 }
 
-// Waveform inital update
+// Initial waveform update on metadata load
 document.addEventListener('DOMContentLoaded', function() {
     function onMetadataLoaded() {
         const src = video.currentSrc.substring(window.location.origin.length);
@@ -643,7 +559,7 @@ document.addEventListener('DOMContentLoaded', function() {
     video.addEventListener('loadedmetadata', onMetadataLoaded);
 });
 
-// Waveform resize update
+// Update waveform on window resize
 let resizeTimer;
 window.addEventListener('resize', function() {
     clearTimeout(resizeTimer);
@@ -653,28 +569,19 @@ window.addEventListener('resize', function() {
     }, 250);
 });
 
-// Render input validation
+
+// Validate inputs and enable/disable the save button
 document.addEventListener("DOMContentLoaded", function() {
     const saveButton = document.getElementById('saveButton');
-    const targetSize = document.getElementById('targetsize');
-    const frameRate = document.getElementById('framerate');
-    const resolution = document.getElementById('resolution');
-    const extension = document.getElementById('extension');
-
-    // Event listeners for input changes
+    const targetSize = document.getElementById('targetsizeC');
+    const resolution = document.getElementById('resolutionC');
     targetSize.addEventListener('input', validateInputs);
-    frameRate.addEventListener('input', validateInputs);
     resolution.addEventListener('input', validateInputs);
-    extension.addEventListener('input', validateInputs);
 
     function validateInputs() {
         const isTargetSizeValid = isValidPositiveNumber(targetSize.value) || isEmpty(targetSize.value);
-        const isFrameRateValid = isValidPositiveNumber(frameRate.value) || isEmpty(frameRate.value);
         const isResolutionValid = isValidResolution(resolution.value) || isEmpty(resolution.value);
-        const isExtensionValid = isValidExtension(extension.value) || isEmpty(extension.value);
-
-        // Disable the save button if any validation fails
-        saveButton.disabled = !(isTargetSizeValid && isFrameRateValid && isResolutionValid && isExtensionValid);
+        saveButton.disabled = !(isTargetSizeValid && isResolutionValid);
     }
 
     function isEmpty(value) {
@@ -698,11 +605,188 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         return false;
     }
+});
 
-    function isValidExtension(value) {
-        if (isEmpty(value)) return true;
-        const allowedExtensions = ['.mp4', '.mkv', '.webm'];
-        return allowedExtensions.includes(value.toLowerCase());
+
+// Dialogs related
+// Buttons
+const overlay = document.getElementById('overlay');
+const dialogFilesize = document.getElementById('dialogFilesize');
+const dialogResfps = document.getElementById('dialogResfps');
+const dialogExtension = document.getElementById('dialogExtension');
+const dialogPresets = document.getElementById('dialogPresets');
+
+document.getElementById('filesizeButton').addEventListener('click', function() {
+    showDialog(dialogFilesize, 'container-config', this);
+});
+document.getElementById('resfpsButton').addEventListener('click', function() {
+    showDialog(dialogResfps, 'container-config', this);
+});
+document.getElementById('extensionButton').addEventListener('click', function() {
+    showDialog(dialogExtension, 'container-config', this);
+});
+document.getElementById('presetsButton').addEventListener('click', function() {
+    showDialog(dialogPresets, 'container-saving', this);
+});
+
+
+// Function to show dialog
+function showDialog(dialog, anchor, button) {
+    const dialogVisible = !dialog.classList.contains('hidden');
+    hideAllDialogs();
+
+    if (dialogVisible) {
+        button.classList.remove('active');
+    } else {
+        button.classList.add('active');
+        const anchorPos = document.getElementById(anchor);
+        dialog.style.visibility = 'hidden';
+        dialog.classList.remove('hidden');
+        const buttonRect = anchorPos.getBoundingClientRect();
+        dialog.style.maxWidth = `${buttonRect.width}px`;
+        dialog.style.top = `${buttonRect.top - dialog.offsetHeight - 8}px`;
+        dialog.style.left = `${buttonRect.left + (buttonRect.width / 2) - (dialog.offsetWidth / 2)}px`;
+        dialog.style.visibility = 'visible';
+        overlay.classList.remove('hidden');
+    }
+}
+
+
+function showDialogFilesize() {
+    hideAllDialogs();
+    showDialog(dialogFilesize, 'container-config');
+}
+
+function showDialogResfps() {
+    hideAllDialogs();
+    showDialog(dialogResfps, 'container-config');
+}
+
+function showDialogExtension() {
+    hideAllDialogs();
+    showDialog(dialogExtension, 'container-config');
+}
+
+function showDialogPresets() {
+    hideAllDialogs();
+    showDialog(dialogPresets, 'container-saving');
+}
+
+overlay.addEventListener('click', hideAllDialogs);
+function hideAllDialogs() {
+    const dialogs = [dialogFilesize, dialogResfps, dialogExtension, dialogPresets];
+    const buttons = [document.getElementById('filesizeButton'), document.getElementById('resfpsButton'), document.getElementById('extensionButton'), document.getElementById('presetsButton')];
+    dialogs.forEach(dialog => dialog.classList.add('hidden'));
+    buttons.forEach(button => button.classList.remove('active'));
+    overlay.classList.add('hidden');
+}
+
+// Adjust dialog position on window resize
+window.addEventListener('resize', () => {
+    if (!dialogFilesize.classList.contains('hidden')) {
+        showDialogFilesize();
+    }
+    if (!dialogResfps.classList.contains('hidden')) {
+        showDialogResfps();
+    }
+    if (!dialogExtension.classList.contains('hidden')) {
+        showDialogExtension();
+    }
+    if (!dialogPresets.classList.contains('hidden')) {
+        showDialogPresets();
     }
 });
 
+// Dialog all presets
+document.addEventListener('DOMContentLoaded', function() {
+    function setupDialog(dialogId, inputId) {
+        const dialog = document.getElementById(dialogId);
+        const input = document.getElementById(inputId);
+        const customInput = dialog.querySelector('input[type="text"]');
+
+        dialog.addEventListener('click', function(event) {
+            if (event.target.tagName === 'BUTTON') {
+                const buttons = dialog.querySelectorAll('button');
+                let isActive = event.target.classList.contains('active');
+                buttons.forEach(btn => btn.classList.remove('active'));
+
+                if (isActive) {
+                    event.target.classList.remove('active');
+                    input.value = '';
+                } else {
+                    event.target.classList.add('active');
+                    input.value = event.target.value;
+                    if (customInput) {
+                        customInput.value = '';
+                    }
+                }
+            }
+        });
+
+        if (customInput) {
+            customInput.addEventListener('input', function() {
+                const buttons = dialog.querySelectorAll('button');
+                buttons.forEach(btn => btn.classList.remove('active'));
+                input.value = customInput.value;
+            });
+        }
+    }
+
+    function setupPresets(dialogId) {
+        const dialog = document.getElementById(dialogId);
+
+        dialog.addEventListener('click', function(event) {
+            if (event.target.tagName === 'BUTTON') {
+                const buttons = dialog.querySelectorAll('button');
+                let isActive = event.target.classList.contains('active');
+
+                buttons.forEach(btn => btn.classList.remove('active'));
+
+                if (isActive) {
+                    event.target.classList.remove('active');
+                    resetAllDialogs();
+                } else {
+                    event.target.classList.add('active');
+                    activatePresets(event.target.value);
+                }
+            }
+        });
+    }
+
+    function resetAllDialogs() {
+        const dialogIds = ['dialogFilesize', 'dialogResfps', 'dialogExtension'];
+        dialogIds.forEach(dialogId => {
+            const dialog = document.getElementById(dialogId);
+            if (dialog) {
+                const buttons = dialog.querySelectorAll('button');
+                buttons.forEach(btn => btn.classList.remove('active'));
+                const input = dialog.querySelector('input[type="text"]');
+                if (input) {
+                    input.value = '';
+                }
+            }
+        });
+    }
+
+    function activatePresets(value) {
+        const ids = value.split(' ');
+        ids.forEach(id => {
+            if (id === 'copy') {
+                const resInput = document.getElementById('resolution');
+                resInput.value = '';
+                const resButtons = document.getElementById('dialogResfps').querySelectorAll('button');
+                resButtons.forEach(btn => btn.classList.remove('active'));
+            } else {
+                const button = document.getElementById(id);
+                if (button && !button.classList.contains('active')) {
+                    button.click();
+                }
+            }
+        });
+    }
+
+    setupDialog('dialogFilesize', 'targetsize');
+    setupDialog('dialogResfps', 'resolution');
+    setupDialog('dialogExtension', 'extension');
+    setupPresets('dialogPresets');
+});
