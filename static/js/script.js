@@ -109,9 +109,7 @@ function processVideo() {
     .then(response => response.json())
     .then(response => {
         if (response.output) {
-            setTimeout(() => {
-                updateVideoSource(response.output);
-            }, 300);
+          updateVideoSource(response.output);
         } else {
             console.error("Output path is missing in the response");
             endVideoOpacityAnimation(video);
@@ -450,8 +448,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (response.output) {
-                updateVideoSource(response.output);
                 animationEnd(video);
+                updateVideoSource(response.output);
             } else {
                 console.error("Output path is missing in the response");
             }
@@ -579,7 +577,7 @@ document.addEventListener("DOMContentLoaded", function() {
     resolution.addEventListener('input', validateInputs);
 
     function validateInputs() {
-        const isTargetSizeValid = isValidPositiveNumber(targetSize.value) || isEmpty(targetSize.value);
+        const isTargetSizeValid = isValidSize(targetSize.value) || isEmpty(targetSize.value);
         const isResolutionValid = isValidResolution(resolution.value) || isEmpty(resolution.value);
         saveButton.disabled = !(isTargetSizeValid && isResolutionValid);
     }
@@ -588,13 +586,15 @@ document.addEventListener("DOMContentLoaded", function() {
         return value.trim() === "";
     }
 
-    function isValidPositiveNumber(value) {
+    function isValidSize(value) {
+        value = value.replace(/\s+/g, '');
         if (isEmpty(value)) return true;
-        const number = parseFloat(value);
-        return !isNaN(number) && number > 0;
+        const regex = /^\d+(\.\d+)?(mb|gb)?$/i;
+        return regex.test(value);
     }
 
-    function isValidResolution(value) {
+        function isValidResolution(value) {
+        value = value.replace(/\s+/g, '');
         if (isEmpty(value)) return true;
         const regex = /^(\d+)x(\d+)$/;
         if (regex.test(value)) {

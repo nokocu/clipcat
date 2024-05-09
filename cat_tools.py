@@ -15,22 +15,22 @@ os.makedirs(temp_dir_path, exist_ok=True)
 
 
 def push_current_state_to_undo(video_path):
-    if 'undo_stack' not in session:
-        session['undo_stack'] = []
     if len(session['undo_stack']) >= 4:
         oldest_path = session['undo_stack'].pop(0)
         if oldest_path not in session['redo_stack']:
             removing(oldest_path)
     session['undo_stack'].append(video_path)
+    logger.info(f"@ push {session['undo_stack']=}")
+    session.modified = True
 
 def push_current_state_to_redo(video_path):
-    if 'redo_stack' not in session:
-        session['redo_stack'] = []
     if len(session['redo_stack']) >= 4:
         oldest_path = session['redo_stack'].pop(0)
         if oldest_path not in session['undo_stack']:
             removing(oldest_path)
     session['redo_stack'].append(video_path)
+    logger.info(f"@ push {session['redo_stack']=}")
+    session.modified = True
 
 
 def cleanup_temp_dir():
@@ -93,16 +93,23 @@ def generate_waveform(audio_path, width):
         return encoded
 
 
-def log_stack():
-    logger.info(f"[log_stack] Undo Stack: {session['undo_stack']}")
-    logger.info(f"[log_stack] Redo Stack: {session['redo_stack']}")
+def log_stack(where=""):
+    try:
+        logger.info(f"[log_stack] @ {where} Undo Stack: {session['undo_stack']}")
+    except KeyError:
+        logger.info(f"[log_stack] @ {where} Undo Stack: empty")
+
+    # try:
+    #     logger.info(f"[log_stack] @ {where} Redo Stack: {session['redo_stack']}")
+    # except KeyError:
+    #     logger.info(f"[log_stack] @ {where} Redo Stack: empty")
 
 
 def removing(path):
     while True:
         try:
             os.remove(path)
-            logger.info(f"[removing] File {path} removed successfully.")
+            # logger.info(f"[removing] File {path} removed successfully.")
             break
         except FileNotFoundError:
             logger.info(f"[removing] File {path} doesn't exist. Ignoring...")

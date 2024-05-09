@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // animations
 function animationUploadingStart() {
-    const indexText2 = document.getElementById('index-text-2');
+    const indexText2 = document.getElementById('text-index-2');
     const btnIndex = document.getElementById('btn-index');
     const containerIndex = document.getElementById('container-index');
 
@@ -114,7 +114,7 @@ function animationUploadingStart() {
 }
 
 function animationUploadingEnd(video) {
-    const indexText2 = document.getElementById('index-text-2');
+    const indexText2 = document.getElementById('text-index-2');
     const btnIndex = document.getElementById('btn-index');
     const containerIndex = document.getElementById('container-index');
 
@@ -131,7 +131,7 @@ function isValidFileType(file) {
 }
 
 function animationInvalid() {
-    const indexText2 = document.getElementById('index-text-2');
+    const indexText2 = document.getElementById('text-index-2');
     const btnIndex = document.getElementById('btn-index');
     const containerIndex = document.getElementById('container-index');
     indexText2.textContent = 'Unsupported file type. Please select a .mp4, .mkv, or .webm file.';

@@ -4,14 +4,51 @@ import time
 import webview
 from cat_tools import logger
 
-
 # pywebview api
+SPI_GETWORKAREA = 48
+class RECT(Structure):
+    _fields_ = [("left", c_long),
+                ("top", c_long),
+                ("right", c_long),
+                ("bottom", c_long)]
+    
 class API:
+    def __init__(self):
+        self.is_maximized = False
+        self.previous_size = None
+        self.previous_position = None
+
     def window_minimize(self):
         webview.windows[0].minimize()
 
     def window_maximize(self):
-        webview.windows[0].toggle_fullscreen()
+        if not self.is_maximized:
+            # Store the current size and position
+            self.previous_size = (webview.windows[0].width, webview.windows[0].height)
+            self.previous_position = (webview.windows[0].x, webview.windows[0].y)
+
+            # Get work area size and set window size
+            rect = RECT()
+            windll.user32.SystemParametersInfoA(SPI_GETWORKAREA, 0, byref(rect), 0)
+            width = rect.right - rect.left
+            height = rect.bottom - rect.top
+            webview.windows[0].resize(width, height)
+            webview.windows[0].move(rect.left, rect.top)
+            self.is_maximized = True
+        else:
+            # Restore the previous size and position
+            if self.previous_size and self.previous_position:
+                webview.windows[0].resize(*self.previous_size)
+                webview.windows[0].move(*self.previous_position)
+            self.is_maximized = False
+
+    def restore_previous_size(self):
+        if self.is_maximized:
+            if self.previous_size and self.previous_position:
+                logger.info("doinit3")
+                webview.windows[0].resize(*self.previous_size)
+                webview.windows[0].move(*self.previous_position)
+            self.is_maximized = False
 
     def window_close(self):
         webview.windows[0].destroy()
@@ -30,11 +67,8 @@ def on_drag(e):
 def on_drop(e):
     files = e['dataTransfer']['files']
     if len(files) == 0:
+        logger.info('[on_drop]: no files dropped')
         return
-    logger.info(f'[on_drop] Event: {e["type"]}. Dropped files:')
-    for file in files:
-        logger.info(f"[on_drop] {file.get('pywebviewFullPath')}")
-
 
 # drag to resize
 class POINT(Structure):

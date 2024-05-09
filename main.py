@@ -1,4 +1,4 @@
-# 0.14
+# v0.15
 from flask import Flask, request, render_template, jsonify, redirect, url_for, send_file, Response
 from werkzeug.utils import secure_filename
 from contextlib import redirect_stdout
@@ -12,7 +12,7 @@ from cat_tools import *
 
 ########################################################################################################################
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('KEY')
+app.config['SECRET_KEY'] = os.environ.get('KEY', 'PLACEHOLDER')
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -21,11 +21,12 @@ webview.settings['ALLOW_DOWNLOADS'] = True
 # routes ##############################################################################################################
 @app.route('/')
 def home():
+    session['undo_stack'] = []
+    session['redo_stack'] = []
     return render_template("index.html")
 
 @app.route('/undo', methods=['POST'])
 def handle_undo():
-    logger.info(f"[handle_undo] session info: {session}")
     data = request.get_json()
     current_video = data.get('currentVideo')
     current_video = current_video.split("/video")[1]
@@ -38,7 +39,6 @@ def handle_undo():
     push_current_state_to_redo(current_video)
     last_state = session['undo_stack'].pop()
     session["src_to_wave"] = last_state
-    log_stack()
     video_path = f"/video/{os.path.basename(last_state)}"
     return jsonify({'success': True, 'message': f"Reverted to {last_state}", 'video_path': video_path})
 
@@ -56,7 +56,6 @@ def handle_redo():
     push_current_state_to_undo(current_video)
     last_state = session['redo_stack'].pop()
     session["src_to_wave"] = last_state
-    log_stack()
     video_path = f"/video/{os.path.basename(last_state)}"
     return jsonify({'success': True, 'message': f"Restored {last_state}", 'video_path': video_path})
 
@@ -74,8 +73,6 @@ def editor():
     file_name = session.get('file_name', 'Default Video')
     file_name_ext = os.path.splitext(file_name)[1]
     directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
-    session['undo_stack'] = []
-    session['redo_stack'] = []
     if request.method == 'POST':
         video_file = request.files['video_file']
         filename = secure_filename(video_file.filename)
@@ -84,12 +81,10 @@ def editor():
         video_file.save(directory)
         session["src_to_wave"] = directory
         session['file_name'] = filename
-        logger.info(f"[editor] Video saved at: {directory}")
 
     timestamp = int(time.time())
     video_path = f"/video/main{file_name_ext}?v={timestamp}"
     width, height, fps = metadata(directory)
-    logger.info(f"[editor] Booting up template with filename: {file_name}")
     return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name)
 
 @app.route("/process_video", methods=["POST"])
@@ -107,7 +102,6 @@ def process_video():
     output_from_trim = os.path.join(temp_dir_path, f"{output_name_without_digits}{timestamp}{ext}")
 
     push_current_state_to_undo(source_to_trim)
-    log_stack()
     trim(source_to_trim, anchor1, anchor2, output_from_trim, video_length)
 
     for file in session['redo_stack']:
@@ -166,7 +160,6 @@ def render_video():
     quality = data.get("quality")
     video_filename = data.get("source").split('/')[-1].split('?')[0]
     source = os.path.join(temp_dir_path, f"{video_filename}")
-
     try:
         render(src=source, ext=extension, qual=quality, size=targetsize, res=resolution, fps=framerate)
         return send_file(session.get('rendered_vid'), as_attachment=True)
@@ -192,18 +185,22 @@ def concat_files():
     base_filename = video_filename.rsplit('.', 1)[0]
     ext = os.path.splitext(video_filename)[1]
     timestamp = int(time.time())
-    current_vid = os.path.join(temp_dir_path, f"{base_filename}{ext}")
+    source_to_concat = os.path.join(temp_dir_path, f"{base_filename}{ext}")
     dragged_vid = session.get('dragged_vid')
     dragged_ext = os.path.splitext(dragged_vid)[1]
+    output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
+    output_from_concat = os.path.join(temp_dir_path, f"{output_name_without_digits}{timestamp}{ext}")
 
     if ext != dragged_ext:
         return jsonify({'error': 'File types do not match'}), 400
 
-    output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
-    output_from_concat = os.path.join(temp_dir_path, f"{output_name_without_digits}{timestamp}{ext}")
-    push_current_state_to_undo(current_vid)
-    log_stack()
-    concat(current_vid, dragged_vid, output_from_concat)
+    push_current_state_to_undo(source_to_concat)
+    concat(source_to_concat, dragged_vid, output_from_concat)
+
+    for file in session['redo_stack']:
+        removing(file)
+    session['redo_stack'].clear()
+
     response_data = {"output": "/video/" + os.path.basename(output_from_concat)}
     return jsonify(response_data)
 
@@ -225,4 +222,4 @@ if __name__ == '__main__':
         window = webview.create_window('clipcat', app, width=1018, height=803,
                                        frameless=True, easy_drag=False, js_api=api_instance,
                                        background_color='#33363d', shadow=True, min_size=(585, 533))
-        webview.start(bind, window)
+        webview.start(bind, window, debug=True)

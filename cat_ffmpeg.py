@@ -5,7 +5,8 @@ import subprocess
 import time
 from cat_tools import temp_dir_path, removing
 from cat_tools import logger
-ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ffmpeg.exe')
+import re
+ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ffmpeg/ffmpeg.exe')
 
 
 # concatenating
@@ -54,8 +55,6 @@ def metadata(video_path):
                 width = track.width
                 height = track.height
                 fps = track.frame_rate
-
-                logger.info(f"[metadata]: {width}x{height} @ {fps} FPS")
                 return width, height, float(fps)
 
     except Exception as e:
@@ -97,13 +96,19 @@ def render(src, ext, qual, size, res, fps):
         else:
             cmd.extend(['-c:v', 'libx264', '-c:a', 'aac'])
     elif src_ext == '.webm' and ext in ['.mp4', '.mkv']:
-        cmd.extend(['-c:v', 'libsvtav1', '-preset', preset_handler(qual, "libx264"), '-c:a', 'libopus'])
+        cmd.extend(['-c:v', 'libx264', '-preset', preset_handler(qual, "libx264"), '-c:a', 'libopus'])
     else:
         cmd.extend(['-c', 'copy'])
         ext = src_ext
 
     # filesize changer
     if size != "copy":
+
+        if "mb" in size.lower():
+            size = size.replace('mb', '')
+        elif "gb" in size.lower():
+            size = int(size.replace('gb', '')) * 1024
+        logger.info(f"size is {size=}")
         try:
             size = max(1, int(size) - 1)
             media_info = MediaInfo.parse(src)
@@ -165,6 +170,9 @@ def render(src, ext, qual, size, res, fps):
 # extraction of audio for waveforms
 def extract_audio(video_path):
     audio_path = os.path.join(temp_dir_path, "temp_audio.wav")
+    logger.info(f"[extract_audio] {video_path=} ")
+    logger.info(f"[extract_audio] {audio_path=} ")
+    logger.info(f"[extract_audio] {ffmpeg_path=} ")
     command = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y', '-v', "error"]
     subprocess.run(command)
     return audio_path
