@@ -20,7 +20,6 @@ def push_current_state_to_undo(video_path):
         if oldest_path not in session['redo_stack']:
             removing(oldest_path)
     session['undo_stack'].append(video_path)
-    logger.info(f"@ push {session['undo_stack']=}")
     session.modified = True
 
 def push_current_state_to_redo(video_path):
@@ -29,7 +28,6 @@ def push_current_state_to_redo(video_path):
         if oldest_path not in session['undo_stack']:
             removing(oldest_path)
     session['redo_stack'].append(video_path)
-    logger.info(f"@ push {session['redo_stack']=}")
     session.modified = True
 
 

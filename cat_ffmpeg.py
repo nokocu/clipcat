@@ -6,7 +6,12 @@ import time
 from cat_tools import temp_dir_path, removing
 from cat_tools import logger
 import re
+
+# ffmpeg path, hide subprocess cmd
 ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ffmpeg/ffmpeg.exe')
+si = subprocess.STARTUPINFO()
+si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+si.wShowWindow = subprocess.SW_HIDE
 
 
 # concatenating
@@ -16,7 +21,7 @@ def concat(source_1, source_2, destination):
         temp_txt.write(f"file '{source_1}'\n")
         temp_txt.write(f"file '{source_2}'\n")
     command = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
-    subprocess.run(command)
+    subprocess.run(command, startupinfo=si)
     removing(temp_txt_path)
 
 
@@ -30,18 +35,18 @@ def trim(source, a, b, destination, video_length):
 
     if b == video_length:
         command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
-        subprocess.run(command)
+        subprocess.run(command, startupinfo=si)
     elif not a == "00:00.000":
         command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel", "error"]
-        subprocess.run(command)
+        subprocess.run(command, startupinfo=si)
         command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
-        subprocess.run(command)
+        subprocess.run(command, startupinfo=si)
         concat(temp_a_path, temp_b_path, destination)
         removing(temp_a_path)
         removing(temp_b_path)
     elif a == "00:00.000":
         command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
-        subprocess.run(command)
+        subprocess.run(command, startupinfo=si)
 
     session["src_to_wave"] = destination
 
@@ -129,35 +134,26 @@ def render(src, ext, qual, size, res, fps):
     # resolution changer
     if res != "copy":
         try:
-            max_res = (7680, 4320)
-            min_res = (1, 1)
-            width, height = map(int, res.split('x'))
-            width = max(min(width, max_res[0]), min_res[0])
-            height = max(min(height, max_res[1]), min_res[1])
-            cmd.extend(['-s', f"{width}x{height}"])
-        except ValueError:
-            res = "copy"
-
-    # framerate changer
-    if fps != "copy":
-        try:
-            fps = max(1, int(fps))
             media_info = MediaInfo.parse(src)
-            current_frame_rate = None
+            current_resolution = None
             for track in media_info.tracks:
                 if track.track_type == 'Video':
-                    current_frame_rate = float(track.frame_rate)
+                    current_width = track.width
+                    current_height = track.height
+                    current_resolution = f"{current_width}x{current_height}"
                     break
 
-            if current_frame_rate is None:
-                logger.error("Frame rate not found in media info.")
-
-            target_frame_rate = round(float(fps), 3)
-            current_frame_rate = round(current_frame_rate, 3)
-            if target_frame_rate < current_frame_rate:
-                cmd.extend(['-r', str(fps)])
+            if current_resolution != res:
+                max_res = (7680, 4320)
+                min_res = (1, 1)
+                width, height = map(int, res.split('x'))
+                width = max(min(width, max_res[0]), min_res[0])
+                height = max(min(height, max_res[1]), min_res[1])
+                cmd.extend(['-s', f"{width}x{height}"])
+            else:
+                cmd.extend(['-c', 'copy'])
         except ValueError:
-            fps = "copy"
+            cmd.extend(['-c', 'copy'])
 
     cmd.append(out)
     logger.info(f"[render] {ext=}, {size=}, {res=}, {fps=}")
@@ -170,9 +166,6 @@ def render(src, ext, qual, size, res, fps):
 # extraction of audio for waveforms
 def extract_audio(video_path):
     audio_path = os.path.join(temp_dir_path, "temp_audio.wav")
-    logger.info(f"[extract_audio] {video_path=} ")
-    logger.info(f"[extract_audio] {audio_path=} ")
-    logger.info(f"[extract_audio] {ffmpeg_path=} ")
     command = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y', '-v', "error"]
-    subprocess.run(command)
+    subprocess.run(command, startupinfo=si)
     return audio_path

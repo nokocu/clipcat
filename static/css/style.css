@@ -191,9 +191,6 @@ button:focus {
     box-sizing: border-box;
 }
 
-.container-top.dragging-over {
-    outline-color: var(--yel);
-}
 
 .container-volume {
     display: none;
@@ -242,11 +239,6 @@ h6, h1 {
 .text-index {
     color: white;
 }
-
-
-
-
-
 
 
 
@@ -369,7 +361,6 @@ svg {
     -webkit-appearance: none;
     background-color: transparent;
     border-radius: 0px;
-    overflow: hidden;
     height: 37px;
     width: 100%;
     --anchorB-percent: 0;
@@ -380,7 +371,7 @@ svg {
     position: relative;
     -webkit-appearance: none;
     width: 0px;
-    height: 44px;
+    height: 37px;
     cursor: pointer;
     border-right: 2px solid var(--yel);
     z-index: 3;
@@ -390,10 +381,10 @@ svg {
     position: relative;
     -webkit-appearance: none;
     width: 0px;
-    height: 44px;
+    height: 37px;
     cursor: pointer;
     border-right: 2px solid var(--yel);
-    z-index: 2;
+    z-index: 3;
 }
 
 .video-slider:focus {
@@ -406,7 +397,19 @@ svg {
 	background: linear-gradient(to right, transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--select) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--select) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%), transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%));
 }
 
-
+.anchor {
+    position: absolute;
+    z-index: 10;
+    height: 100%;
+    width: 0px;
+    background-color: white;
+    pointer-events: none;
+    display: inline;
+    left: 0%;
+    height: 37px;
+    border-right: 2px solid white;
+    z-index: 3;
+}
 
 /* pywebview */
 .pywebview-drag-region {
@@ -639,8 +642,11 @@ textarea:focus, input:focus{
 }
 
 
+/* dynamic */
+.dragging-over {
+    outline-color: var(--yel);
+}
 
-/* visibility */
 .hidden {
     display: none;
 }

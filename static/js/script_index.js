@@ -59,21 +59,30 @@ document.addEventListener('mousemove', function(event) {
 
 // drag'n'drop
 document.addEventListener('DOMContentLoaded', function() {
-    var containerTop = document.querySelector('.container-top');
+    var dropZone = document.getElementById('drop-zone');
+    var containerTop = document.getElementById('container-top');
     var fileInput = document.getElementById('fileInput');
 
-    containerTop.addEventListener('dragover', function(event) {
-        event.preventDefault();
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+    });
+
+    containerTop.addEventListener('dragover', function(e) {
         this.classList.add('dragging-over');
+        e.preventDefault();
+    });
+
+    containerTop.addEventListener('dragleave', function(event) {
+        this.classList.remove('dragging-over');
     });
 
     containerTop.addEventListener('mouseleave', function(event) {
-    this.classList.remove('dragging-over');
+        this.classList.remove('dragging-over');
     });
 
-    containerTop.addEventListener('drop', function(event) {
-        animationUploadingStart();
+    dropZone.addEventListener('drop', function(event) {
         event.preventDefault();
+        animationUploadingStart();
         this.classList.remove('dragging-over');
         var files = event.dataTransfer.files;
         if (isValidFileType(files[0])) {

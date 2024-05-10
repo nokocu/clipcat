@@ -15,12 +15,12 @@
         <input class="volume-range" type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.1">
     </div>
 
-    <div class="container-all">
+    <div class="container-all" id="drop-zone">
 
         <div class="pywebview-drag-region" ondblclick="pywebview.api.window_maximize()">
             <div class="container-title">
                 <img src="/static/assets/favicon.ico" class="titlebar-ico">
-                <h6 class="text-titlebar">clipcat v0.15</h6>
+                <h6 class="text-titlebar">clipcat v0.16</h6>
             </div>
             <div class="container-title-btns">
                 <button id="minimizeBtn" class="btn-titlebar"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/></svg></button>
@@ -30,7 +30,7 @@
         </div>
 
         <div class="container-both" >
-            <div class="container-top">
+            <div class="container-top" id="container-top">
                 <img class="poster-image" src="/static/assets/poster.png"  id="poster-image">
                 <div class="poster-overlay">
                     <div class="cat" id="cat">

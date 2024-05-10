@@ -1,3 +1,10 @@
+// init ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Global variables
+let isHovering = false;
+let interactionsEnabled = true;
+const framerate = parseFloat(document.getElementById('infoFPS').textContent || document.getElementById('infoFPS').value);
+
 // Element selectors
 const video = document.getElementById("videoToClip");
 const playButton = document.getElementById("playButton");
@@ -8,11 +15,6 @@ const totalTimeDisplay = document.getElementById("totalTime");
 const anchorA = document.getElementById("anchorA");
 const anchorB = document.getElementById("anchorB");
 const videoSlider = document.getElementById("videoSlider");
-
-// Global variables
-let isHovering = false;
-let interactionsEnabled = true;
-const framerate = parseFloat(document.getElementById('infoFPS').textContent || document.getElementById('infoFPS').value);
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', initializeEventListeners);
@@ -31,6 +33,334 @@ function initializeEventListeners() {
     videoSlider.addEventListener('input', handleSliderInput);
 }
 
+// Validate inputs and enable/disable the save button
+document.addEventListener("DOMContentLoaded", function() {
+    const saveButton = document.getElementById('saveButton');
+    const targetSize = document.getElementById('targetsizeCustom');
+    const resolution = document.getElementById('resolutionCustom');
+    targetSize.addEventListener('input', validateInputs);
+    resolution.addEventListener('input', validateInputs);
+
+    function validateInputs() {
+        const isTargetSizeValid = isValidSize(targetSize.value) || isEmpty(targetSize.value);
+        const isResolutionValid = isValidResolution(resolution.value) || isEmpty(resolution.value);
+        saveButton.disabled = !(isTargetSizeValid && isResolutionValid);
+    }
+
+    function isEmpty(value) {
+        return value.trim() === "";
+    }
+
+    function isValidSize(value) {
+        value = value.replace(/\s+/g, '');
+        if (isEmpty(value)) return true;
+        const regex = /^\d+(\.\d+)?(mb|gb)?$/i;
+        return regex.test(value);
+    }
+
+        function isValidResolution(value) {
+        value = value.replace(/\s+/g, '');
+        if (isEmpty(value)) return true;
+        const regex = /^(\d+)x(\d+)$/;
+        if (regex.test(value)) {
+            const match = value.match(regex);
+            const width = parseInt(match[1], 10);
+            const height = parseInt(match[2], 10);
+            return width >= 1 && height >= 1 && width <= 7680 && height <= 4320;
+        }
+        return false;
+    }
+});
+
+// Format time values
+function formatTime(time) {
+    var minutes = Math.floor(time / 60000);
+    var seconds = Math.floor((time % 60000) / 1000);
+    var milliseconds = Math.floor(time % 1000);
+    return (minutes < 10 ? "0" + minutes : minutes) + ":" +
+           (seconds < 10 ? "0" + seconds : seconds) + "." +
+           (milliseconds < 10 ? "00" + milliseconds : milliseconds < 100 ? "0" + milliseconds : milliseconds);
+}
+
+// Retrieve SVG markup based on the control type
+function getSVG(type) {
+    const icons = {
+        play: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg>',
+        pause: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" class="bi bi-pause-fill" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"></path></svg>'
+    };
+    return icons[type] || '';
+}
+
+// Tabbing
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        button.setAttribute('tabindex', '-1');
+    });
+});
+
+// animations //////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function animationStart(video) {
+    video.style.transition = 'opacity 0.2s ease-in-out';
+    video.style.opacity = '0.5';
+    disableInteractions();
+    hideAllDialogs();
+}
+
+function animationEnd(video) {
+    video.style.opacity = '1';
+    enableInteractions();
+}
+
+function disableInteractions() {
+    interactionsEnabled = false;
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    mainButtons.forEach(button => {
+        button.disabled = true;
+    });
+    const videoSlider = document.getElementById('videoSlider');
+    videoSlider.style.pointerEvents = 'none';
+}
+
+function enableInteractions() {
+    interactionsEnabled = true;
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    mainButtons.forEach(button => {
+        button.disabled = false;
+    });
+    const videoSlider = document.getElementById('videoSlider');
+    videoSlider.style.pointerEvents = 'auto';
+}
+
+// Animation functions
+function animationStart(video) {
+    video.style.transition = 'opacity 0.2s ease-in-out';
+    video.style.opacity = '0.5';
+    disableInteractions();
+    hideAllDialogs();
+}
+
+function animationEnd(video) {
+    video.style.opacity = '1';
+    enableInteractions();
+}
+
+function disableInteractions() {
+    interactionsEnabled = false;
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    mainButtons.forEach(button => {
+        button.disabled = true;
+    });
+    const videoSlider = document.getElementById('videoSlider');
+    videoSlider.style.pointerEvents = 'none';
+}
+
+function enableInteractions() {
+    interactionsEnabled = true;
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    mainButtons.forEach(button => {
+        button.disabled = false;
+    });
+    const videoSlider = document.getElementById('videoSlider');
+    videoSlider.style.pointerEvents = 'auto';
+}
+
+// drag and drop ///////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Drag and drop functionality
+document.addEventListener('DOMContentLoaded', function() {
+    var dropZone = document.getElementById('drop-zone');
+    var containerTop = document.getElementById('container-top');
+
+    // Fixes dragging when dialog is active
+    var overlay = document.getElementById('overlay');
+    overlay.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        hideAllDialogs();
+    });
+
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+    });
+
+    containerTop.addEventListener('dragover', function(e) {
+        this.classList.add('dragging-over');
+        e.preventDefault();
+    });
+
+    containerTop.addEventListener('dragleave', function(event) {
+        this.classList.remove('dragging-over');
+    });
+
+    containerTop.addEventListener('mouseleave', function(event) {
+        this.classList.remove('dragging-over');
+    });
+
+
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        animationStart(video);
+        var formData = new FormData();
+        formData.append('file', e.dataTransfer.files[0]);
+        fetch('/upload_to_concut', {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                var videoPath = video.currentSrc.substring(window.location.origin.length);
+                const postData = { video: videoPath };
+                return fetch('/concat_both', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(postData)
+                });
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ensure dragged video has the same extension');
+            }
+            return response.json();
+        })
+        .then(response => {
+            if (response.output) {
+                animationEnd(video);
+                updateVideoSource(response.output);
+            } else {
+                console.error("Output path is missing in the response");
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert(error.message);
+            animationEnd(video);
+        });
+    });
+});
+
+// keyhandler //////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Handle keydown events globally
+function handleKeydown(event) {
+    if (!interactionsEnabled && event.key !== 'Escape') {
+        event.preventDefault();
+        return;
+    }
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement.tagName === 'INPUT' && activeElement.type === 'text';
+    if (isInputFocused && !event.ctrlKey) return;
+
+    switch (event.key) {
+        case 'Escape':
+            animationStart(video);
+            const dialog = document.querySelector('.container-dialog');
+            event.preventDefault();
+            dialog.classList.contains('hidden') ? window.location.href = '/cleanup' : hideDialog();
+            break;
+        case 'z': case 'Z':
+            if (event.ctrlKey) {
+                event.preventDefault();
+                undoVideoEdit(video.currentSrc.substring(window.location.origin.length));
+            }
+            break;
+        case 'y': case 'Y':
+            if (event.ctrlKey) {
+                event.preventDefault();
+                redoVideoEdit(video.currentSrc.substring(window.location.origin.length));
+            }
+            break;
+        case 's': case 'S':
+            if (event.ctrlKey) document.getElementById("saveButton").click();
+            break;
+        case 'w': case 'W':
+            if (event.ctrlKey) {
+                event.preventDefault();
+                window.location.href = '/cleanup';
+            }
+            break;
+        case '1': document.getElementById("mediaA").click(); break;
+        case '2': document.getElementById("mediaB").click(); break;
+        case 'x': case 'X': document.getElementById("mediaProcess").click(); break;
+        case 'a': case 'A': case 'ArrowLeft': document.getElementById("backwardButton").click(); break;
+        case 'd': case 'D': case 'ArrowRight': document.getElementById("forwardButton").click(); break;
+        case ' ': case 'Enter': document.getElementById("playButton").click(); break;
+        default: break;
+    }
+}
+
+// volume //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const volumeButton = document.getElementById("volumeButton");
+const volumeSliderContainer = document.getElementById("volumeSliderContainer");
+volumeButton.addEventListener("mouseenter", () => {
+    const rect = volumeButton.getBoundingClientRect();
+    volumeSliderContainer.style.display = "block";
+    volumeSliderContainer.style.left = `${rect.left + 21}px`;
+    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 15}px`;
+});
+
+volumeButton.addEventListener("mouseleave", () => {
+    setTimeout(() => {
+        if (!isHovering) volumeSliderContainer.style.display = "none";
+    }, 80);
+});
+
+volumeSliderContainer.addEventListener("mouseenter", () => isHovering = true);
+volumeSliderContainer.addEventListener("mouseleave", () => {
+    isHovering = false;
+    if (!volumeButton.matches(":hover")) volumeSliderContainer.style.display = "none";
+});
+
+volumeSlider.addEventListener("input", function() {
+    video.volume = volumeSlider.value;
+});
+
+// waveforms ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Update waveform based on the video source
+function updateWaveform(newSource) {
+    const waveformContainer = document.getElementById('waveform');
+    const waveformWidth = waveformContainer.clientWidth;
+    if (newSource.startsWith('/')) {
+        newSource = newSource.substring(1);
+    }
+    const [basePath, queryParams] = newSource.split('?');
+    const encodedBasePath = encodeURIComponent(basePath);
+    const url = `/waveform/${encodedBasePath}` + (queryParams ? `?${queryParams}&` : '?') + `width=${waveformWidth}`;
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            waveformContainer.style.backgroundImage = `url(data:image/png;base64,${data.image})`;
+        })
+        .catch(err => console.error('Error loading waveform:', err));
+}
+
+// Initial waveform update on metadata load
+document.addEventListener('DOMContentLoaded', function() {
+    function onMetadataLoaded() {
+        const src = video.currentSrc.substring(window.location.origin.length);
+        updateWaveform(src);
+        video.removeEventListener('loadedmetadata', onMetadataLoaded);
+    }
+    video.addEventListener('loadedmetadata', onMetadataLoaded);
+});
+
+// Update waveform on window resize
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        const src = video.currentSrc.substring(window.location.origin.length);
+        updateWaveform(src);
+    }, 250);
+});
+
+// video ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Handle slider input to seek video
 function handleSliderInput() {
     const percent = videoSlider.value / 100;
@@ -74,140 +404,6 @@ function skip(value) {
         console.error("Invalid or zero framerate: ", framerate);
     }
 }
-
-// Set anchor points for video clipping
-function setPoint(point, anchorId) {
-    const currentTime = formatTime(video.currentTime * 1000);
-    document.getElementById(anchorId).textContent = currentTime;
-    const videoSliderValue = videoSlider.value;
-    videoSlider.dataset[point.id] = videoSliderValue;
-    const pointPercent = parseFloat(videoSlider.dataset[point.id]) / 100;
-    videoSlider.style.setProperty(`--${point.id}-percent`, pointPercent);
-    point.style.display = "inline";
-    point.style.left = pointPercent * 100 + "%";
-    updateProcessVideoButtonState();
-}
-
-// Process video based on set points
-function processVideo() {
-    const video = document.getElementById('videoToClip');
-    const totalTime = document.getElementById("totalTime").textContent;
-    const data = {
-        anchor1: document.getElementById("anchorAValue").innerText,
-        anchor2: document.getElementById("anchorBValue").innerText,
-        video: video.currentSrc.substring(window.location.origin.length),
-        totalTime: totalTime
-    };
-    animationStart(video);
-    fetch("process_video", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(response => {
-        if (response.output) {
-          updateVideoSource(response.output);
-        } else {
-            console.error("Output path is missing in the response");
-            endVideoOpacityAnimation(video);
-        }
-    });
-}
-
-// Handle keydown events globally
-function handleKeydown(event) {
-    const activeElement = document.activeElement;
-    const isInputFocused = activeElement.tagName === 'INPUT' && activeElement.type === 'text';
-    if (isInputFocused && !event.ctrlKey) {
-        return;
-    }
-    switch (event.key) {
-        case 'Escape':
-            animationStart(video);
-            const dialog = document.querySelector('.container-dialog');
-            event.preventDefault();
-            !dialog.classList.contains('hidden') ? hideDialog() : window.location.href = '/cleanup';
-            break;
-        case 'z':
-        case 'Z':
-            if (event.ctrlKey) {
-                event.preventDefault();
-                undoVideoEdit(video.currentSrc.substring(window.location.origin.length));
-            }
-            break;
-        case 'y':
-        case 'Y':
-            if (event.ctrlKey) {
-                event.preventDefault();
-                redoVideoEdit(video.currentSrc.substring(window.location.origin.length));
-            }
-            break;
-        case 's':
-        case 'S':
-            if (event.ctrlKey) {
-                document.getElementById("saveButton").click();
-            }
-            break;
-        case 'w':
-        case 'W':
-            if (event.ctrlKey) {
-                event.preventDefault();
-                window.location.href = '/cleanup';
-            }
-            break;
-        case '1':
-            document.getElementById("mediaA").click();
-            break;
-        case '2':
-            document.getElementById("mediaB").click();
-            break;
-        case 'x':
-        case 'X':
-            document.getElementById("mediaProcess").click();
-            break;
-        case 'a':
-        case 'A':
-        case 'ArrowLeft':
-            document.getElementById("backwardButton").click();
-            break;
-        case 'd':
-        case 'D':
-        case 'ArrowRight':
-            document.getElementById("forwardButton").click();
-            break;
-        case ' ':
-        case 'Enter':
-            document.getElementById("playButton").click();
-            break;
-        default:
-            break;
-    }
-}
-// Utility functions
-
-// Format time values
-function formatTime(time) {
-    var minutes = Math.floor(time / 60000);
-    var seconds = Math.floor((time % 60000) / 1000);
-    var milliseconds = Math.floor(time % 1000);
-    return (minutes < 10 ? "0" + minutes : minutes) + ":" +
-           (seconds < 10 ? "0" + seconds : seconds) + "." +
-           (milliseconds < 10 ? "00" + milliseconds : milliseconds < 100 ? "0" + milliseconds : milliseconds);
-}
-
-// Retrieve SVG markup based on the control type
-function getSVG(type) {
-    const icons = {
-        play: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg>',
-        pause: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#2b2d33" class="bi bi-pause-fill" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"></path></svg>'
-    };
-    return icons[type] || '';
-}
-
-// Video processing functions
 
 // Update the slider based on video duration
 function updateSlider() {
@@ -267,11 +463,18 @@ function updateVideoSource(newSource) {
 // Reset video UI to initial state
 function resetVideoUI() {
     const videoSlider = document.getElementById('videoSlider');
+    const anchorA = document.getElementById("anchorA")
+    const anchorB = document.getElementById("anchorB")
+
     videoSlider.value = 0;
     videoSlider.style.setProperty('--anchorA-percent', '0');
     videoSlider.style.setProperty('--anchorB-percent', '0');
-    document.getElementById("anchorA").style.display = "none";
-    document.getElementById("anchorB").style.display = "none";
+    anchorA.classList.add('hidden')
+    anchorB.classList.add('hidden')
+
+    anchorA.style.left = "0%";
+    anchorB.style.left = "0%";
+    anchorB.classList.add('hidden')
     document.getElementById("anchorAValue").innerText = "00:00.000";
     document.getElementById("anchorBValue").innerText = "00:00.000";
     playButton.innerHTML = getSVG('play');
@@ -367,101 +570,6 @@ function renderVideo() {
     });
 }
 
-
-// Initialize video time update
-updateVideoTime();
-
-// Volume control
-const volumeButton = document.getElementById("volumeButton");
-const volumeSliderContainer = document.getElementById("volumeSliderContainer");
-volumeButton.addEventListener("mouseenter", () => {
-    const rect = volumeButton.getBoundingClientRect();
-    volumeSliderContainer.style.display = "block";
-    volumeSliderContainer.style.left = `${rect.left + 21}px`;
-    volumeSliderContainer.style.top = `${rect.top + window.scrollY - 15}px`;
-});
-
-volumeButton.addEventListener("mouseleave", () => {
-    setTimeout(() => {
-        if (!isHovering) volumeSliderContainer.style.display = "none";
-    }, 80);
-});
-
-volumeSliderContainer.addEventListener("mouseenter", () => isHovering = true);
-volumeSliderContainer.addEventListener("mouseleave", () => {
-    isHovering = false;
-    if (!volumeButton.matches(":hover")) volumeSliderContainer.style.display = "none";
-});
-
-volumeSlider.addEventListener("input", function() {
-    video.volume = volumeSlider.value;
-});
-
-// Tab disabled
-document.addEventListener('DOMContentLoaded', function() {
-    const buttons = document.querySelectorAll('button');
-    buttons.forEach(button => {
-        button.setAttribute('tabindex', '-1');
-    });
-});
-
-
-// Drag and drop functionality
-document.addEventListener('DOMContentLoaded', function() {
-    var containerTop = document.querySelector('.container-top');
-    var dropArea = document.getElementById('drop_zone');
-    containerTop.addEventListener('dragover', function(e) {
-        this.classList.add('dragging-over');
-        e.preventDefault();
-    });
-    containerTop.addEventListener('mouseleave', function(event) {
-        this.classList.remove('dragging-over');
-    });
-    dropArea.addEventListener('drop', function(e) {
-        e.preventDefault();
-        animationStart(video);
-        var formData = new FormData();
-        formData.append('file', e.dataTransfer.files[0]);
-        fetch('/upload_to_concut', {
-            method: 'POST',
-            body: formData,
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                var videoPath = video.currentSrc.substring(window.location.origin.length);
-                const postData = { video: videoPath };
-                return fetch('/concat_both', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(postData)
-                });
-            } else {
-                throw new Error(data.error);
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Ensure dragged video has the same extension');
-            }
-            return response.json();
-        })
-        .then(response => {
-            if (response.output) {
-                animationEnd(video);
-                updateVideoSource(response.output);
-            } else {
-                console.error("Output path is missing in the response");
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            alert(error.message);
-            animationEnd(video);
-        });
-    });
-});
-
 // Handling playback during seeking
 let isDragging = false;
 let wasPlayingBeforeDrag = false;
@@ -495,132 +603,66 @@ document.addEventListener('mouseup', function() {
     }
 });
 
-// Animation functions
-function animationStart(video) {
-    video.style.transition = 'opacity 0.2s ease-in-out';
-    video.style.opacity = '0.5';
-    disableInteractions();
-    hideAllDialogs();
+// Set anchor points for video clipping
+function setPoint(point, anchorId) {
+    const currentTime = formatTime(video.currentTime * 1000);
+    document.getElementById(anchorId).textContent = currentTime;
+    const videoSliderValue = videoSlider.value;
+    videoSlider.dataset[point.id] = videoSliderValue;
+    const pointPercent = parseFloat(videoSlider.dataset[point.id]) / 100;
+    videoSlider.style.setProperty(`--${point.id}-percent`, pointPercent);
+    anchorA.classList.remove('hidden')
+    anchorB.classList.remove('hidden')
+    point.style.left = pointPercent * 100 + "%";
+    updateProcessVideoButtonState();
 }
 
-function animationEnd(video) {
-    video.style.opacity = '1';
-    enableInteractions();
-}
-
-function disableInteractions() {
-    interactionsEnabled = false;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
-    mainButtons.forEach(button => {
-        button.disabled = true;
-    });
-    const videoSlider = document.getElementById('videoSlider');
-    videoSlider.style.pointerEvents = 'none';
-}
-
-function enableInteractions() {
-    interactionsEnabled = true;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
-    mainButtons.forEach(button => {
-        button.disabled = false;
-    });
-    const videoSlider = document.getElementById('videoSlider');
-    videoSlider.style.pointerEvents = 'auto';
-}
-// Waveform update functions
-
-// Update waveform based on the video source
-function updateWaveform(newSource) {
-    const waveformContainer = document.getElementById('waveform');
-    const waveformWidth = waveformContainer.clientWidth;
-    if (newSource.startsWith('/')) {
-        newSource = newSource.substring(1);
-    }
-    const [basePath, queryParams] = newSource.split('?');
-    const encodedBasePath = encodeURIComponent(basePath);
-    const url = `/waveform/${encodedBasePath}` + (queryParams ? `?${queryParams}&` : '?') + `width=${waveformWidth}`;
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            waveformContainer.style.backgroundImage = `url(data:image/png;base64,${data.image})`;
-        })
-        .catch(err => console.error('Error loading waveform:', err));
-}
-
-// Initial waveform update on metadata load
-document.addEventListener('DOMContentLoaded', function() {
-    function onMetadataLoaded() {
-        const src = video.currentSrc.substring(window.location.origin.length);
-        updateWaveform(src);
-        video.removeEventListener('loadedmetadata', onMetadataLoaded);
-    }
-    video.addEventListener('loadedmetadata', onMetadataLoaded);
-});
-
-// Update waveform on window resize
-let resizeTimer;
-window.addEventListener('resize', function() {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function() {
-        const src = video.currentSrc.substring(window.location.origin.length);
-        updateWaveform(src);
-    }, 250);
-});
-
-
-// Validate inputs and enable/disable the save button
-document.addEventListener("DOMContentLoaded", function() {
-    const saveButton = document.getElementById('saveButton');
-    const targetSize = document.getElementById('targetsizeC');
-    const resolution = document.getElementById('resolutionC');
-    targetSize.addEventListener('input', validateInputs);
-    resolution.addEventListener('input', validateInputs);
-
-    function validateInputs() {
-        const isTargetSizeValid = isValidSize(targetSize.value) || isEmpty(targetSize.value);
-        const isResolutionValid = isValidResolution(resolution.value) || isEmpty(resolution.value);
-        saveButton.disabled = !(isTargetSizeValid && isResolutionValid);
-    }
-
-    function isEmpty(value) {
-        return value.trim() === "";
-    }
-
-    function isValidSize(value) {
-        value = value.replace(/\s+/g, '');
-        if (isEmpty(value)) return true;
-        const regex = /^\d+(\.\d+)?(mb|gb)?$/i;
-        return regex.test(value);
-    }
-
-        function isValidResolution(value) {
-        value = value.replace(/\s+/g, '');
-        if (isEmpty(value)) return true;
-        const regex = /^(\d+)x(\d+)$/;
-        if (regex.test(value)) {
-            const match = value.match(regex);
-            const width = parseInt(match[1], 10);
-            const height = parseInt(match[2], 10);
-            return width >= 1 && height >= 1 && width <= 7680 && height <= 4320;
+// Process video based on set points
+function processVideo() {
+    const video = document.getElementById('videoToClip');
+    const totalTime = document.getElementById("totalTime").textContent;
+    const data = {
+        anchor1: document.getElementById("anchorAValue").innerText,
+        anchor2: document.getElementById("anchorBValue").innerText,
+        video: video.currentSrc.substring(window.location.origin.length),
+        totalTime: totalTime
+    };
+    animationStart(video);
+    fetch("process_video", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(response => {
+        if (response.output) {
+          updateVideoSource(response.output);
+        } else {
+            console.error("Output path is missing in the response");
+            endVideoOpacityAnimation(video);
         }
-        return false;
-    }
-});
+    });
+}
 
+// Initialize video time update
+updateVideoTime();
 
-// Dialogs related
-// Buttons
+// dialogs /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Dialogs Buttons
 const overlay = document.getElementById('overlay');
-const dialogFilesize = document.getElementById('dialogFilesize');
-const dialogResfps = document.getElementById('dialogResfps');
+const dialogTargetsize = document.getElementById('dialogTargetsize');
+const dialogResolution = document.getElementById('dialogResolution');
 const dialogExtension = document.getElementById('dialogExtension');
 const dialogPresets = document.getElementById('dialogPresets');
 
 document.getElementById('filesizeButton').addEventListener('click', function() {
-    showDialog(dialogFilesize, 'container-config', this);
+    showDialog(dialogTargetsize, 'container-config', this);
 });
 document.getElementById('resfpsButton').addEventListener('click', function() {
-    showDialog(dialogResfps, 'container-config', this);
+    showDialog(dialogResolution, 'container-config', this);
 });
 document.getElementById('extensionButton').addEventListener('click', function() {
     showDialog(dialogExtension, 'container-config', this);
@@ -652,14 +694,14 @@ function showDialog(dialog, anchor, button) {
 }
 
 
-function showDialogFilesize() {
+function showDialogTargetsize() {
     hideAllDialogs();
-    showDialog(dialogFilesize, 'container-config');
+    showDialog(dialogTargetsize, 'container-config');
 }
 
-function showDialogResfps() {
+function showDialogResolution() {
     hideAllDialogs();
-    showDialog(dialogResfps, 'container-config');
+    showDialog(dialogResolution, 'container-config');
 }
 
 function showDialogExtension() {
@@ -674,7 +716,7 @@ function showDialogPresets() {
 
 overlay.addEventListener('click', hideAllDialogs);
 function hideAllDialogs() {
-    const dialogs = [dialogFilesize, dialogResfps, dialogExtension, dialogPresets];
+    const dialogs = [dialogTargetsize, dialogResolution, dialogExtension, dialogPresets];
     const buttons = [document.getElementById('filesizeButton'), document.getElementById('resfpsButton'), document.getElementById('extensionButton'), document.getElementById('presetsButton')];
     dialogs.forEach(dialog => dialog.classList.add('hidden'));
     buttons.forEach(button => button.classList.remove('active'));
@@ -683,11 +725,11 @@ function hideAllDialogs() {
 
 // Adjust dialog position on window resize
 window.addEventListener('resize', () => {
-    if (!dialogFilesize.classList.contains('hidden')) {
-        showDialogFilesize();
+    if (!dialogTargetsize.classList.contains('hidden')) {
+        showDialogTargetsize();
     }
-    if (!dialogResfps.classList.contains('hidden')) {
-        showDialogResfps();
+    if (!dialogResolution.classList.contains('hidden')) {
+        showDialogResolution();
     }
     if (!dialogExtension.classList.contains('hidden')) {
         showDialogExtension();
@@ -697,96 +739,101 @@ window.addEventListener('resize', () => {
     }
 });
 
-// Dialog all presets
+// Dialog functionalities
 document.addEventListener('DOMContentLoaded', function() {
-    function setupDialog(dialogId, inputId) {
-        const dialog = document.getElementById(dialogId);
-        const input = document.getElementById(inputId);
-        const customInput = dialog.querySelector('input[type="text"]');
+    const dialogTargetsize = document.getElementById('dialogTargetsize');
+    const dialogResolution = document.getElementById('dialogResolution');
+    const dialogExtension = document.getElementById('dialogExtension');
+    const dialogPresets = document.getElementById('dialogPresets');
 
-        dialog.addEventListener('click', function(event) {
-            if (event.target.tagName === 'BUTTON') {
-                const buttons = dialog.querySelectorAll('button');
-                let isActive = event.target.classList.contains('active');
-                buttons.forEach(btn => btn.classList.remove('active'));
+    document.body.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-dialog')) {
+            handleDialogButton(e.target);
+        }
+    });
 
-                if (isActive) {
-                    event.target.classList.remove('active');
-                    input.value = '';
-                } else {
-                    event.target.classList.add('active');
-                    input.value = event.target.value;
-                    if (customInput) {
-                        customInput.value = '';
-                    }
-                }
+    document.body.addEventListener('input', function(e) {
+        if (e.target.classList.contains('input-dialog')) {
+            handleDialogInput(e.target);
+        }
+    });
+
+    function handleDialogButton(button) {
+        const dialog = button.closest('div');
+        if (dialog !== dialogPresets) {
+            if (button.classList.contains('active')) {
+                button.classList.remove('active');
+                clearDialog(dialog);
+            } else {
+                clearDialog(dialog);
+                button.classList.add('active');
+                updateTargetValue(dialog, button.value);
             }
-        });
-
-        if (customInput) {
-            customInput.addEventListener('input', function() {
-                const buttons = dialog.querySelectorAll('button');
-                buttons.forEach(btn => btn.classList.remove('active'));
-                input.value = customInput.value;
-            });
+            deactivatePresets();
+        } else {
+            if (button.classList.contains('active')) {
+                button.classList.remove('active');
+                clearAllDialogs();
+            } else {
+                clearAllDialogs();
+                button.classList.add('active');
+                activatePreset(button);
+            }
         }
     }
 
-    function setupPresets(dialogId) {
-        const dialog = document.getElementById(dialogId);
+    function handleDialogInput(input) {
+        const dialog = input.closest('div');
+        clearDialog(dialog, false);
+        updateTargetValue(dialog, input.value);
+        deactivatePresets();
+    }
 
-        dialog.addEventListener('click', function(event) {
-            if (event.target.tagName === 'BUTTON') {
-                const buttons = dialog.querySelectorAll('button');
-                let isActive = event.target.classList.contains('active');
+    function clearDialog(dialog, clearInput = true) {
+        const buttons = dialog.querySelectorAll('.btn-dialog.active');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        if (clearInput) {
+            const input = dialog.querySelector('.input-dialog');
+            if (input) input.value = '';
+        }
+        updateTargetValue(dialog, '');
+    }
 
-                buttons.forEach(btn => btn.classList.remove('active'));
+    function updateTargetValue(dialog, value) {
+        const targetId = dialog.id.replace('dialog', '').toLowerCase();
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            targetElement.value = value;
+        }
+    }
 
-                if (isActive) {
-                    event.target.classList.remove('active');
-                    resetAllDialogs();
-                } else {
-                    event.target.classList.add('active');
-                    activatePresets(event.target.value);
-                }
+    function activatePreset(button) {
+        deactivatePresets();
+        button.classList.add('active');
+        const values = button.value.split(' ');
+        values.forEach(val => {
+            const btn = document.getElementById(val);
+            if (btn) {
+                btn.classList.add('active');
+                const dialog = btn.closest('div');
+                updateTargetValue(dialog, btn.value);
             }
         });
     }
 
-    function resetAllDialogs() {
-        const dialogIds = ['dialogFilesize', 'dialogResfps', 'dialogExtension'];
-        dialogIds.forEach(dialogId => {
-            const dialog = document.getElementById(dialogId);
+    function deactivatePresets() {
+        dialogPresets.querySelectorAll('.btn-dialog.active').forEach(btn => btn.classList.remove('active'));
+    }
+
+    function clearAllDialogs() {
+        [dialogTargetsize, dialogResolution, dialogExtension].forEach(dialog => {
             if (dialog) {
-                const buttons = dialog.querySelectorAll('button');
-                buttons.forEach(btn => btn.classList.remove('active'));
-                const input = dialog.querySelector('input[type="text"]');
-                if (input) {
-                    input.value = '';
-                }
+                clearDialog(dialog);
             }
         });
     }
-
-    function activatePresets(value) {
-        const ids = value.split(' ');
-        ids.forEach(id => {
-            if (id === 'copy') {
-                const resInput = document.getElementById('resolution');
-                resInput.value = '';
-                const resButtons = document.getElementById('dialogResfps').querySelectorAll('button');
-                resButtons.forEach(btn => btn.classList.remove('active'));
-            } else {
-                const button = document.getElementById(id);
-                if (button && !button.classList.contains('active')) {
-                    button.click();
-                }
-            }
-        });
-    }
-
-    setupDialog('dialogFilesize', 'targetsize');
-    setupDialog('dialogResfps', 'resolution');
-    setupDialog('dialogExtension', 'extension');
-    setupPresets('dialogPresets');
 });
+
+
+
+
