@@ -21,6 +21,7 @@ def push_current_state_to_undo(video_path):
             removing(oldest_path)
     session['undo_stack'].append(video_path)
     session.modified = True
+    log_stack(where="push")
 
 def push_current_state_to_redo(video_path):
     if len(session['redo_stack']) >= 4:
@@ -29,6 +30,7 @@ def push_current_state_to_redo(video_path):
             removing(oldest_path)
     session['redo_stack'].append(video_path)
     session.modified = True
+    log_stack(where="push")
 
 
 def cleanup_temp_dir():

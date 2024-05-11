@@ -20,8 +20,8 @@ def concat(source_1, source_2, destination):
     with open(temp_txt_path, 'w') as temp_txt:
         temp_txt.write(f"file '{source_1}'\n")
         temp_txt.write(f"file '{source_2}'\n")
-    command = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
-    subprocess.run(command, startupinfo=si)
+    cmd = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
+    subprocess.run(cmd, startupinfo=si)
     removing(temp_txt_path)
 
 
@@ -34,19 +34,19 @@ def trim(source, a, b, destination, video_length):
         a, b = b, a
 
     if b == video_length:
-        command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
-        subprocess.run(command, startupinfo=si)
+        cmd = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
+        subprocess.run(cmd, startupinfo=si)
     elif not a == "00:00.000":
-        command = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel", "error"]
-        subprocess.run(command, startupinfo=si)
-        command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
-        subprocess.run(command, startupinfo=si)
+        cmd = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel", "error"]
+        subprocess.run(cmd, startupinfo=si)
+        cmd = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
+        subprocess.run(cmd, startupinfo=si)
         concat(temp_a_path, temp_b_path, destination)
         removing(temp_a_path)
         removing(temp_b_path)
     elif a == "00:00.000":
-        command = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
-        subprocess.run(command, startupinfo=si)
+        cmd = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
+        subprocess.run(cmd, startupinfo=si)
 
     session["src_to_wave"] = destination
 
@@ -158,7 +158,7 @@ def render(src, ext, qual, size, res, fps):
     cmd.append(out)
     logger.info(f"[render] {ext=}, {size=}, {res=}, {fps=}")
     logger.info(f"[render]: executing: ({' '.join(cmd)})")
-    subprocess.run(cmd)
+    subprocess.run(cmd, startupinfo=si)
     elapsed_time = time.time() - start_time
     logger.info(f"[render]: finished in {elapsed_time:.2f} seconds.")
 
@@ -166,6 +166,6 @@ def render(src, ext, qual, size, res, fps):
 # extraction of audio for waveforms
 def extract_audio(video_path):
     audio_path = os.path.join(temp_dir_path, "temp_audio.wav")
-    command = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y', '-v', "error"]
-    subprocess.run(command, startupinfo=si)
+    cmd = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y', '-v', "error"]
+    subprocess.run(cmd, startupinfo=si)
     return audio_path

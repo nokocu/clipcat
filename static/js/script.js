@@ -23,8 +23,8 @@ document.addEventListener('DOMContentLoaded', initializeEventListeners);
 function initializeEventListeners() {
     document.addEventListener('keydown', handleKeydown);
     video.addEventListener('timeupdate', updateSlider);
-    document.getElementById("mediaA").addEventListener("click", () => setPoint(anchorA, "anchorAValue"));
-    document.getElementById("mediaB").addEventListener("click", () => setPoint(anchorB, "anchorBValue"));
+    document.getElementById("mediaA").addEventListener("click", () => setAnchor(anchorA, "anchorAValue"));
+    document.getElementById("mediaB").addEventListener("click", () => setAnchor(anchorB, "anchorBValue"));
     document.getElementById("mediaProcess").addEventListener("click", processVideo);
     document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
     document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
@@ -465,12 +465,16 @@ function resetVideoUI() {
     const videoSlider = document.getElementById('videoSlider');
     const anchorA = document.getElementById("anchorA")
     const anchorB = document.getElementById("anchorB")
+    const anchorAsvg = document.getElementById("overlaySvgA")
+    const anchorBsvg = document.getElementById("overlaySvgB")
 
     videoSlider.value = 0;
     videoSlider.style.setProperty('--anchorA-percent', '0');
     videoSlider.style.setProperty('--anchorB-percent', '0');
     anchorA.classList.add('hidden')
     anchorB.classList.add('hidden')
+    anchorAsvg.classList.add('hidden')
+    anchorBsvg.classList.add('hidden')
 
     anchorA.style.left = "0%";
     anchorB.style.left = "0%";
@@ -603,19 +607,7 @@ document.addEventListener('mouseup', function() {
     }
 });
 
-// Set anchor points for video clipping
-function setPoint(point, anchorId) {
-    const currentTime = formatTime(video.currentTime * 1000);
-    document.getElementById(anchorId).textContent = currentTime;
-    const videoSliderValue = videoSlider.value;
-    videoSlider.dataset[point.id] = videoSliderValue;
-    const pointPercent = parseFloat(videoSlider.dataset[point.id]) / 100;
-    videoSlider.style.setProperty(`--${point.id}-percent`, pointPercent);
-    anchorA.classList.remove('hidden')
-    anchorB.classList.remove('hidden')
-    point.style.left = pointPercent * 100 + "%";
-    updateProcessVideoButtonState();
-}
+
 
 // Process video based on set points
 function processVideo() {
@@ -835,5 +827,102 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
+// trimming ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function setAnchor(point, anchorId) {
+    const currentTime = formatTime(video.currentTime * 1000);
+    document.getElementById(anchorId).textContent = currentTime;
+
+    const videoSliderValue = videoSlider.value;
+    videoSlider.dataset[point.id] = videoSliderValue;
+
+    const pointPercent = parseFloat(videoSlider.dataset[point.id]) / 100;
+    videoSlider.style.setProperty(`--${point.id}-percent`, pointPercent);
+
+    anchorA.classList.remove('hidden');
+    anchorB.classList.remove('hidden');
+    point.style.left = pointPercent * 100 + "%";
+    updateProcessVideoButtonState();
+    updateSvgPositions();
+
+}
 
 
+let isRightMouseDown = false;
+let selectedAnchor = null;
+
+
+function moveClosestAnchor(event) {
+    const posX = event.clientX;
+    const rect = event.target.getBoundingClientRect();
+    const clickPositionPercent = ((posX - rect.left) / rect.width) * 100;
+
+    const anchorA = document.getElementById('anchorA');
+    const anchorB = document.getElementById('anchorB');
+
+    const anchorAPosition = parseFloat(anchorA.style.left || '0');
+    const anchorBPosition = parseFloat(anchorB.style.left || '0');
+
+    const distanceA = Math.abs(clickPositionPercent - anchorAPosition);
+    const distanceB = Math.abs(clickPositionPercent - anchorBPosition);
+    selectedAnchor = distanceA < distanceB ? anchorA : anchorB;
+
+    // Move slider thumb to cursor position
+    videoSlider.value = clickPositionPercent;
+
+    if (selectedAnchor === anchorA) {
+        setAnchor(anchorA, "anchorAValue");
+    } else if (selectedAnchor === anchorB) {
+        setAnchor(anchorB, "anchorBValue");
+    }
+}
+
+document.getElementById('videoSlider').addEventListener('mousedown', function(event) {
+    if (event.button === 2) {
+        isRightMouseDown = true;
+        moveClosestAnchor(event);
+    }
+});
+
+document.getElementById('videoSlider').addEventListener('mousemove', function(event) {
+    if (isRightMouseDown && selectedAnchor) {
+        moveClosestAnchor(event);
+        handleSliderInput();
+    }
+});
+
+document.addEventListener('mouseup', function(event) {
+    if (event.button === 2) {
+        isRightMouseDown = false;
+        selectedAnchor = null;
+    }
+});
+
+
+// Anchor SVG //////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function updateSvgPositions() {
+    const anchorA = document.getElementById('anchorA');
+    const anchorB = document.getElementById('anchorB');
+    const svgA = document.getElementById('overlaySvgA');
+    const svgB = document.getElementById('overlaySvgB');
+
+    if (anchorA && anchorB && svgA && svgB) {
+        const rectA = anchorA.getBoundingClientRect();
+        const rectB = anchorB.getBoundingClientRect();
+
+        svgA.style.position = 'fixed';
+        svgA.style.left = `${rectA.left + window.scrollX + rectA.width / 2 - 6}px`;
+        svgA.style.top = `${rectA.top + window.scrollY - 19}px`;
+
+        svgB.style.position = 'fixed';
+        svgB.style.left = `${rectB.left + window.scrollX + rectB.width / 2 - 6}px`;
+        svgB.style.top = `${rectB.top + window.scrollY - 19}px`;
+
+        svgA.classList.remove('hidden');
+        svgB.classList.remove('hidden');
+
+
+    }
+}
+window.addEventListener('resize', updateSvgPositions);

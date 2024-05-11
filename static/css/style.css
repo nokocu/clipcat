@@ -321,6 +321,15 @@ svg {
     opacity: 0;
 }
 
+.overlay-svg-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
 
 
 /* player */
@@ -392,9 +401,14 @@ svg {
 }
 
 .video-slider::-webkit-slider-runnable-track {
-    position: relative;
-    z-index: 1;
-	background: linear-gradient(to right, transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--select) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%), var(--select) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%), transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%));
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        transparent calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%),
+        var(--select) calc(min(var(--anchorA-percent), var(--anchorB-percent)) * 100%),
+        var(--select) calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%),
+        transparent calc(max(var(--anchorA-percent), var(--anchorB-percent)) * 100%)
+    );
 }
 
 .anchor {
@@ -650,3 +664,7 @@ textarea:focus, input:focus{
 .hidden {
     display: none;
 }
+
+
+
+

@@ -1,4 +1,4 @@
-# v0.16
+# v0.17
 from flask import Flask, request, render_template, jsonify, redirect, url_for, send_file, Response
 from werkzeug.utils import secure_filename
 from contextlib import redirect_stdout
@@ -34,6 +34,7 @@ def handle_undo():
 
     if 'undo_stack' not in session or not session['undo_stack']:
         logger.info("[handle_undo] Undo stack is empty")
+        return jsonify({'success': False, 'error': 'No more actions to undo'})
 
     push_current_state_to_redo(current_video)
     last_state = session['undo_stack'].pop()
@@ -220,5 +221,5 @@ if __name__ == '__main__':
         api_instance = API()
         window = webview.create_window('clipcat', app, width=1018, height=803,
                                        frameless=True, easy_drag=False, js_api=api_instance,
-                                       background_color='#33363d', shadow=True, min_size=(585, 533))
-        webview.start(bind, window)
+                                       background_color='#33363d', shadow=True, min_size=(628, 553))
+        webview.start(bind, window, debug=True)
