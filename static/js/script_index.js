@@ -134,6 +134,10 @@ function animationUploadingEnd(video) {
 
 // Validation of upload
 function isValidFileType(file) {
+    if (!file || !file.name) {
+        console.error("Invalid file or file name not provided.");
+        return false;
+    }
     const validTypes = ['.mp4', '.mkv', '.webm'];
     const fileType = file.name.substring(file.name.lastIndexOf('.'));
     return validTypes.includes(fileType);
@@ -147,3 +151,6 @@ function animationInvalid() {
     containerIndex.style.opacity = '1';
     btnIndex.disabled = false;
 }
+
+// Dissalow right click
+window.addEventListener("contextmenu", e => e.preventDefault());

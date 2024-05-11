@@ -5,7 +5,7 @@
   --grey: #33363d;
   --greydialog: #3d4149;
   --whitenot: #bcbdbf;
-  --select: #ffffff46;
+  --select: #eb343d93;
 }
 
 html, body {
@@ -18,6 +18,10 @@ html, body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    user-select: none;
+}
+
+body {
     animation: fadeIn 0.3s;
 }
 
@@ -96,6 +100,49 @@ button:focus {
     background-color: var(--yel);
 }
 
+.btn-misc {
+	color: var(--whitenot);
+    background-color: transparent;
+    border: none;
+    height: 29px;
+	width: 29px;
+    margin: 10px 4px 0px 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    position: relative;
+    border-radius: 5px;
+}
+
+.btn-misc:disabled {
+    cursor: not-allowed;
+}
+
+.btn-misc:not(:disabled):hover {
+    .svg-misc{
+        color:#ffc63d
+    }
+}
+
+.btn-index {
+    background-color: var(--yel);
+    border: none;
+    height: 37px;
+	width: 43px;
+    cursor: pointer;
+    transition: filter 0.3s;
+    border-radius: 5px;
+	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.1);
+	z-index: 4;
+}
+
+.btn-index:disabled {
+    cursor: not-allowed;
+    filter: none;
+}
+
+.btn-index:not(:disabled):hover {
+    filter: saturate(0);
+}
 
 
 /* containers */
@@ -136,9 +183,15 @@ button:focus {
     padding: 0rem 0.5rem 0rem 0.5rem;
 }
 
+.container-bottom-B > :last-child {
+    margin-left: auto;
+}
+
 
 .container-bottom-B1 {
 	padding: 1rem 0.5rem 0rem 0.5rem;
+    display: flex;
+    flex-direction: column;
 }
 
 .container-controls {
@@ -151,8 +204,6 @@ button:focus {
     z-index: 4;
     position: relative;
 }
-
-
 
 .container-title-btns {
     display: flex;
@@ -201,7 +252,29 @@ button:focus {
     transform: translate(-50%, -100%);
 }
 
+.container-misc {
+    display: flex;
+    justify-content: end;
+}
 
+.container-index {
+    display: flex;
+    justify-content: end;
+	overflow: hidden;
+    transition: opacity 0.3s;
+    z-index: 4;
+    position: relative;
+}
+
+.overlay-svg-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
 
 /* text */
 h6, h1 {
@@ -308,9 +381,7 @@ svg {
 }
 
 .titlebar-icon {
-    height: 16px;
-    width: 16px;
-    margin-right: 10px;
+    pointer-events: none;
 }
 
 .poster-image {
@@ -321,15 +392,13 @@ svg {
     opacity: 0;
 }
 
-.overlay-svg-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 2;
+.svg-misc {
+    padding: 0px;
+    transition: color 0.2s;
 }
+
+
+
 
 
 /* player */

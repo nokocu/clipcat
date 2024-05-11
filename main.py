@@ -1,4 +1,4 @@
-# v0.17
+# v0.18
 from flask import Flask, request, render_template, jsonify, redirect, url_for, send_file, Response
 from werkzeug.utils import secure_filename
 from contextlib import redirect_stdout
@@ -7,8 +7,8 @@ import threading
 import re
 import atexit
 from cat_ffmpeg import *
-from cat_pywebview import *
 from cat_tools import *
+from cat_pywebview import *
 
 ########################################################################################################################
 app = Flask(__name__)
@@ -213,13 +213,24 @@ def waveform(video_path):
 
 ########################################################################################################################
 
+
 if __name__ == '__main__':
     stream = StringIO()
     cleanup_temp_dir()
     atexit.register(cleanup_temp_dir)
     with redirect_stdout(stream):
         api_instance = API()
-        window = webview.create_window('clipcat', app, width=1018, height=803,
-                                       frameless=True, easy_drag=False, js_api=api_instance,
-                                       background_color='#33363d', shadow=True, min_size=(628, 553))
-        webview.start(bind, window, debug=True)
+        window = webview.create_window(
+            'clipcat', app, width=1018, height=803, frameless=True,
+            js_api=api_instance, background_color='#33363d', min_size=(628, 553),
+            easy_drag=False, shadow=True, http_port=1337, focus=True)
+
+        # Windows 10
+        if not winforms.is_chromium:
+            browser_mode()
+            app.run(port=1337)
+
+        # Windows 11
+        else:
+            webview.start(gui="edgechromium")
+

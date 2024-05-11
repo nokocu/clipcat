@@ -18,6 +18,7 @@ const videoSlider = document.getElementById("videoSlider");
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', initializeEventListeners);
+window.addEventListener("contextmenu", e => e.preventDefault());
 
 // Initialize all event listeners
 function initializeEventListeners() {
@@ -257,21 +258,19 @@ function handleKeydown(event) {
 
     switch (event.key) {
         case 'Escape':
-            animationStart(video);
-            const dialog = document.querySelector('.container-dialog');
             event.preventDefault();
-            dialog.classList.contains('hidden') ? window.location.href = '/cleanup' : hideDialog();
+            closeCurrentVid();
             break;
         case 'z': case 'Z':
             if (event.ctrlKey) {
                 event.preventDefault();
-                undoVideoEdit(video.currentSrc.substring(window.location.origin.length));
+                undoVideoEdit();
             }
             break;
         case 'y': case 'Y':
             if (event.ctrlKey) {
                 event.preventDefault();
-                redoVideoEdit(video.currentSrc.substring(window.location.origin.length));
+                redoVideoEdit();
             }
             break;
         case 's': case 'S':
@@ -291,6 +290,12 @@ function handleKeydown(event) {
         case ' ': case 'Enter': document.getElementById("playButton").click(); break;
         default: break;
     }
+}
+
+function closeCurrentVid() {
+    animationStart(video);
+    const dialog = document.querySelector('.container-dialog');
+    dialog.classList.contains('hidden') ? window.location.href = '/cleanup' : hideDialog();
 }
 
 // volume //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -488,11 +493,11 @@ function resetVideoUI() {
 }
 
 // Undo and redo video edits
-function undoVideoEdit(currentVideoSource) {
+function undoVideoEdit() {
     fetch('/undo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentVideo: currentVideoSource })
+        body: JSON.stringify({ currentVideo: video.currentSrc.substring(window.location.origin.length) })
     })
     .then(response => response.json())
     .then(data => {
@@ -505,11 +510,11 @@ function undoVideoEdit(currentVideoSource) {
     .catch(error => console.error('Error:', error));
 }
 
-function redoVideoEdit(currentVideoSource) {
+function redoVideoEdit() {
     fetch('/redo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentVideo: currentVideoSource })
+        body: JSON.stringify({ currentVideo: video.currentSrc.substring(window.location.origin.length) })
     })
     .then(response => response.json())
     .then(data => {

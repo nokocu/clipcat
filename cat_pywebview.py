@@ -1,8 +1,10 @@
-from webview.dom import DOMEventHandler
+import webbrowser
 from ctypes import windll, Structure, c_long, byref
 import time
 import webview
 from cat_tools import logger
+import webview.platforms.edgechromium as edgechromium
+import webview.platforms.winforms as winforms
 
 # pywebview api
 SPI_GETWORKAREA = 48
@@ -11,7 +13,7 @@ class RECT(Structure):
                 ("top", c_long),
                 ("right", c_long),
                 ("bottom", c_long)]
-    
+
 class API:
     def __init__(self):
         self.is_maximized = False
@@ -56,20 +58,6 @@ class API:
     def resizedrag(self):
         resizewindow(webview.windows[0])
 
-# drag to upload
-def bind(window):
-    window.dom.document.events.dragover += DOMEventHandler(on_drag, True, True)
-    window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
-
-def on_drag(e):
-    pass
-
-def on_drop(e):
-    files = e['dataTransfer']['files']
-    if len(files) == 0:
-        logger.info('[on_drop]: no files dropped')
-        return
-
 # drag to resize
 class POINT(Structure):
     _fields_ = [("x", c_long), ("y", c_long)]
@@ -105,3 +93,20 @@ def resizewindow(window):
             except:
                 logger.info('[doresize]: failed to calculate position changes')
         time.sleep(0.01)
+
+
+# Monkeypatch for pywebview, that launches browser if WebView2 was uninstalled from Windows11
+class CustomEdgeChrome(edgechromium.EdgeChrome):
+    def on_webview_ready(self, sender, args):
+        if not args.IsSuccess:
+            browser_mode()
+            logger.error('WebView2 initialization failed with exception:\n' + str(args.InitializationException))
+            return
+        else:
+            super().on_webview_ready(sender, args)
+
+
+def browser_mode():
+    webbrowser.open_new("http://127.0.0.1:1337/")
+
+edgechromium.EdgeChrome = CustomEdgeChrome
