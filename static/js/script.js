@@ -17,7 +17,13 @@ const anchorB = document.getElementById("anchorB");
 const videoSlider = document.getElementById("videoSlider");
 
 // Event listeners
-document.addEventListener('DOMContentLoaded', initializeEventListeners);
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEventListeners();
+    setTimeout(() => {
+        updateSvgPositions();
+    }, 500);
+
+});
 window.addEventListener("contextmenu", e => e.preventDefault());
 
 // Initialize all event listeners
@@ -102,16 +108,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // animations //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-function animationStart(video) {
-    video.style.transition = 'opacity 0.2s ease-in-out';
+function animationStart(video, action) {
+    video.style.transition = 'opacity 0.1s ease-in-out';
     video.style.opacity = '0.5';
     disableInteractions();
     hideAllDialogs();
+    showSvg(action);
 }
 
 function animationEnd(video) {
-    video.style.opacity = '1';
-    enableInteractions();
+    setTimeout(() => {
+        video.style.opacity = '1';
+        enableInteractions();
+        hideSvg();
+    }, 100);
+}
+
+function showSvg(action) {
+    const svgId = `animationsvg-${action}`;
+    const svgElement = document.getElementById(svgId);
+    if (svgElement) {
+        svgElement.style.opacity = '0.3';
+        if (action === "render") {
+            svgElement.classList.add('pulse-animation');
+        }
+    }
+}
+
+function hideSvg() {
+    const svgs = document.querySelectorAll('.animationsvg');
+    svgs.forEach(svg => {
+        svg.style.opacity = '0';
+        svg.classList.remove('pulse-animation');
+    });
 }
 
 function disableInteractions() {
@@ -128,121 +157,14 @@ function enableInteractions() {
     interactionsEnabled = true;
     const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
     mainButtons.forEach(button => {
-        button.disabled = false;
+        if (button.id !== "mediaProcess") {
+            button.disabled = false;
+        }
     });
     const videoSlider = document.getElementById('videoSlider');
     videoSlider.style.pointerEvents = 'auto';
 }
 
-// Animation functions
-function animationStart(video) {
-    video.style.transition = 'opacity 0.2s ease-in-out';
-    video.style.opacity = '0.5';
-    disableInteractions();
-    hideAllDialogs();
-}
-
-function animationEnd(video) {
-    video.style.opacity = '1';
-    enableInteractions();
-}
-
-function disableInteractions() {
-    interactionsEnabled = false;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
-    mainButtons.forEach(button => {
-        button.disabled = true;
-    });
-    const videoSlider = document.getElementById('videoSlider');
-    videoSlider.style.pointerEvents = 'none';
-}
-
-function enableInteractions() {
-    interactionsEnabled = true;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
-    mainButtons.forEach(button => {
-        button.disabled = false;
-    });
-    const videoSlider = document.getElementById('videoSlider');
-    videoSlider.style.pointerEvents = 'auto';
-}
-
-// drag and drop ///////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Drag and drop functionality
-document.addEventListener('DOMContentLoaded', function() {
-    var dropZone = document.getElementById('drop-zone');
-    var containerTop = document.getElementById('container-top');
-
-    // Fixes dragging when dialog is active
-    var overlay = document.getElementById('overlay');
-    overlay.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        hideAllDialogs();
-    });
-
-    dropZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-    });
-
-    containerTop.addEventListener('dragover', function(e) {
-        this.classList.add('dragging-over');
-        e.preventDefault();
-    });
-
-    containerTop.addEventListener('dragleave', function(event) {
-        this.classList.remove('dragging-over');
-    });
-
-    containerTop.addEventListener('mouseleave', function(event) {
-        this.classList.remove('dragging-over');
-    });
-
-
-    dropZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        animationStart(video);
-        var formData = new FormData();
-        formData.append('file', e.dataTransfer.files[0]);
-        fetch('/upload_to_concut', {
-            method: 'POST',
-            body: formData,
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                var videoPath = video.currentSrc.substring(window.location.origin.length);
-                const postData = { video: videoPath };
-                return fetch('/concat_both', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(postData)
-                });
-            } else {
-                throw new Error(data.error);
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Ensure dragged video has the same extension');
-            }
-            return response.json();
-        })
-        .then(response => {
-            if (response.output) {
-                animationEnd(video);
-                updateVideoSource(response.output);
-            } else {
-                console.error("Output path is missing in the response");
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            alert(error.message);
-            animationEnd(video);
-        });
-    });
-});
 
 // keyhandler //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -293,7 +215,7 @@ function handleKeydown(event) {
 }
 
 function closeCurrentVid() {
-    animationStart(video);
+    animationStart(video, 'close');
     const dialog = document.querySelector('.container-dialog');
     dialog.classList.contains('hidden') ? window.location.href = '/cleanup' : hideDialog();
 }
@@ -415,15 +337,18 @@ function updateSlider() {
     if (video.duration) {
         const percent = (video.currentTime / video.duration) * 100;
         videoSlider.value = percent;
+        updateSvgPositions();
     }
 }
 
 // Update the state of the process video button
 function updateProcessVideoButtonState() {
+
     const anchor1Text = document.getElementById("anchorAValue").textContent;
     const anchor2Text = document.getElementById("anchorBValue").textContent;
     const totalTime = document.getElementById("totalTime").textContent;
     const processVideoButton = document.getElementById("mediaProcess");
+
     const disableCondition = (anchor1Text === anchor2Text) ||
                              (anchor1Text === "00:00.000" && anchor2Text === totalTime) ||
                              (anchor1Text === totalTime && anchor2Text === "00:00.000");
@@ -490,10 +415,12 @@ function resetVideoUI() {
     backwardButton.disabled = false;
     forwardButton.disabled = false;
     updateSlider();
+    updateSvgPositions();
 }
 
 // Undo and redo video edits
 function undoVideoEdit() {
+    animationStart(video, 'undo');
     fetch('/undo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -502,15 +429,25 @@ function undoVideoEdit() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            updateVideoSource(data.video_path);
+            setTimeout(() => {
+                updateVideoSource(data.video_path);
+                animationEnd(video);
+            }, 100);
         } else {
-            console.log('[script.js undoVideoEdit] Undo failed:', data.error);
+            setTimeout(() => {
+                console.log('[script.js redoVideoEdit] undo failed:', data.error);
+                animationEnd(video);
+            }, 100);
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error during undo:', error);
+        animationEnd(video);
+    });
 }
 
 function redoVideoEdit() {
+    animationStart(video, 'redo')
     fetch('/redo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -519,9 +456,15 @@ function redoVideoEdit() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            updateVideoSource(data.video_path);
+            setTimeout(() => {
+                updateVideoSource(data.video_path);
+                animationEnd(video);
+            }, 100);
         } else {
-            console.log('[script.js redoVideoEdit] Redo failed:', data.error);
+            setTimeout(() => {
+                console.log('[script.js redoVideoEdit] Redo failed:', data.error);
+                animationEnd(video);
+            }, 100);
         }
     })
     .catch(error => console.error('Error:', error));
@@ -547,7 +490,7 @@ function renderVideo() {
         framerate: framerate,
     };
 
-    animationStart(video);
+    animationStart(video, 'render');
 
     fetch("render_video", {
         method: "POST",
@@ -624,7 +567,7 @@ function processVideo() {
         video: video.currentSrc.substring(window.location.origin.length),
         totalTime: totalTime
     };
-    animationStart(video);
+    animationStart(video, 'cut');
     fetch("process_video", {
         method: "POST",
         headers: {
@@ -852,27 +795,24 @@ function setAnchor(point, anchorId) {
 
 }
 
-
-let isRightMouseDown = false;
+let isLeftMouseDown = false;
 let selectedAnchor = null;
 
 
-function moveClosestAnchor(event) {
+function moveClosestAnchor(event, videoSlider) {
     const posX = event.clientX;
-    const rect = event.target.getBoundingClientRect();
-    const clickPositionPercent = ((posX - rect.left) / rect.width) * 100;
+    const rect = videoSlider.getBoundingClientRect();
+    let clickPositionPercent = ((posX - rect.left) / rect.width) * 100;
 
     const anchorA = document.getElementById('anchorA');
     const anchorB = document.getElementById('anchorB');
-
     const anchorAPosition = parseFloat(anchorA.style.left || '0');
     const anchorBPosition = parseFloat(anchorB.style.left || '0');
 
     const distanceA = Math.abs(clickPositionPercent - anchorAPosition);
     const distanceB = Math.abs(clickPositionPercent - anchorBPosition);
-    selectedAnchor = distanceA < distanceB ? anchorA : anchorB;
 
-    // Move slider thumb to cursor position
+    selectedAnchor = distanceA < distanceB ? anchorA : anchorB;
     videoSlider.value = clickPositionPercent;
 
     if (selectedAnchor === anchorA) {
@@ -882,52 +822,229 @@ function moveClosestAnchor(event) {
     }
 }
 
-document.getElementById('videoSlider').addEventListener('mousedown', function(event) {
-    if (event.button === 2) {
-        isRightMouseDown = true;
-        moveClosestAnchor(event);
+videoSlider.addEventListener('mousedown', function(event) {
+    if (event.button === 0) {
+        isLeftMouseDown = true;
+        moveClosestAnchor(event, videoSlider);
     }
 });
 
-document.getElementById('videoSlider').addEventListener('mousemove', function(event) {
-    if (isRightMouseDown && selectedAnchor) {
-        moveClosestAnchor(event);
+document.addEventListener('mousemove', function(event) {
+    if (isLeftMouseDown && selectedAnchor) {
+        moveClosestAnchor(event, videoSlider);
         handleSliderInput();
     }
 });
 
 document.addEventListener('mouseup', function(event) {
-    if (event.button === 2) {
-        isRightMouseDown = false;
+    if (event.button === 0) {
+        isLeftMouseDown = false;
         selectedAnchor = null;
     }
 });
 
 
-// Anchor SVG //////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Anchor and thumb SVG //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function updateSvgPositions() {
     const anchorA = document.getElementById('anchorA');
     const anchorB = document.getElementById('anchorB');
     const svgA = document.getElementById('overlaySvgA');
     const svgB = document.getElementById('overlaySvgB');
+    const svgThumb = document.getElementById('overlaySvgThumb');
+    const videoSlider = document.getElementById('videoSlider');
 
-    if (anchorA && anchorB && svgA && svgB) {
+    if (anchorA && anchorB && svgA && svgB && svgThumb && videoSlider) {
         const rectA = anchorA.getBoundingClientRect();
         const rectB = anchorB.getBoundingClientRect();
+        const rectSlider = videoSlider.getBoundingClientRect();
 
+        // Calculate thumb position
+        const thumbWidth = 2;
+        const sliderValue = videoSlider.value;
+        const sliderMax = videoSlider.max || 100;
+        const sliderMin = videoSlider.min || 0;
+        const thumbPosition = ((sliderValue - sliderMin) / (sliderMax - sliderMin)) * (rectSlider.width - thumbWidth);
+        const thumbCenter = thumbPosition + (thumbWidth / 2);
+
+        // Position SVG A and B
         svgA.style.position = 'fixed';
         svgA.style.left = `${rectA.left + window.scrollX + rectA.width / 2 - 6}px`;
-        svgA.style.top = `${rectA.top + window.scrollY - 19}px`;
-
+        svgA.style.top = `${rectA.top + window.scrollY - 19 + 52}px`;
         svgB.style.position = 'fixed';
         svgB.style.left = `${rectB.left + window.scrollX + rectB.width / 2 - 6}px`;
-        svgB.style.top = `${rectB.top + window.scrollY - 19}px`;
+        svgB.style.top = `${rectB.top + window.scrollY - 19 + 52}px`;
+
+        // Position SVG Thumb above the video slider thumb
+        svgThumb.style.position = 'fixed';
+        svgThumb.style.left = `${rectSlider.left + window.scrollX + thumbPosition - 6}px`; // Adjust -10 as needed
+        svgThumb.style.top = `${rectSlider.top + window.scrollY - 12}px`; // Adjust -30 as needed
 
         svgA.classList.remove('hidden');
         svgB.classList.remove('hidden');
-
-
+        svgThumb.classList.remove('hidden');
     }
 }
+
 window.addEventListener('resize', updateSvgPositions);
+document.addEventListener('DOMContentLoaded', updateSvgPositions);
+videoSlider.addEventListener('input', updateSvgPositions); // Update position on slider change
+
+// concat //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+document.addEventListener('DOMContentLoaded', function() {
+    var dropZone = document.getElementById('drop-zone');
+    var containerTop = document.getElementById('container-top');
+    var overlay = document.getElementById('overlay');
+    var fileInput = document.getElementById('fileInput');
+
+    // Prevent default drag behaviors
+    overlay.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        hideAllDialogs();
+    });
+
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+    });
+
+    containerTop.addEventListener('dragover', function(e) {
+        this.classList.add('dragging-over');
+        e.preventDefault();
+    });
+
+    containerTop.addEventListener('dragleave', function(event) {
+        this.classList.remove('dragging-over');
+    });
+
+    containerTop.addEventListener('mouseleave', function(event) {
+        this.classList.remove('dragging-over');
+    });
+
+    // Handle file drop
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        handleFileUpload(e.dataTransfer.files[0]);
+    });
+
+    // Handle file selection via input
+    fileInput.addEventListener('change', function() {
+        var file = this.files[0];
+        if (!isValidFileType(file)) {
+            alert('Ensure dragged video has the same extension')
+            return;
+        }
+        animationStart(video, 'concat');
+        handleFileUpload(file);
+
+    });
+
+    // Function to handle file uploads
+    function handleFileUpload(file) {
+        animationStart(video, 'concat');
+        var formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload_to_concut', {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                var videoPath = video.currentSrc.substring(window.location.origin.length);
+                const postData = {
+                    video: videoPath
+                };
+                return fetch('/concat_both', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(postData)
+                });
+            } else {
+                throw new Error(data.error);
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ensure dragged video has the same extension');
+            }
+            return response.json();
+        })
+        .then(response => {
+            if (response.output) {
+                animationEnd(video);
+                updateVideoSource(response.output);
+            } else {
+                console.error("Output path is missing in the response");
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert(error.message);
+            animationEnd(video);
+        });
+    }
+
+    // Choose file function
+    function chooseFile() {
+        fileInput.setAttribute('accept', '.mp4,.mkv,.webm');
+        fileInput.click();
+    }
+
+    // Validation of upload
+    function isValidFileType(file) {
+        if (!file || !file.name) {
+            console.error("Invalid file or file name not provided.");
+            return false;
+        }
+        const validTypes = ['.mp4', '.mkv', '.webm'];
+        const fileType = file.name.substring(file.name.lastIndexOf('.'));
+        return validTypes.includes(fileType);
+    }
+
+    window.chooseFile = chooseFile;
+});
+
+// New thumb
+document.addEventListener('DOMContentLoaded', function() {
+    const overlaySvgThumb = document.getElementById('overlaySvgThumb');
+    const videoSlider = document.getElementById('videoSlider');
+    let isDragging = false;
+
+    // Function to update the slider based on the thumb's position
+    function updateSliderFromThumbPosition(pageX) {
+        const sliderRect = videoSlider.getBoundingClientRect();
+        const thumbX = pageX - sliderRect.left; // Position within the slider
+        const sliderWidth = sliderRect.width;
+        const newSliderValue = Math.max(0, Math.min(100, (thumbX / sliderWidth) * 100));
+        videoSlider.value = newSliderValue;
+        handleSliderInput(); // Assuming you have this function to handle slider input
+    }
+
+    // Mouse down on the thumb starts the drag
+    overlaySvgThumb.addEventListener('mousedown', function(event) {
+        event.preventDefault();
+        isDragging = true;
+        updateSvgPositions();
+    });
+
+    // Mouse move updates the slider if dragging
+    document.addEventListener('mousemove', function(event) {
+        if (isDragging) {
+            updateSliderFromThumbPosition(event.pageX);
+            updateSvgPositions();
+        }
+    });
+
+    // Mouse up ends the drag
+    document.addEventListener('mouseup', function(event) {
+        if (isDragging) {
+            isDragging = false;
+            updateSliderFromThumbPosition(event.pageX);
+        }
+    });
+});
+

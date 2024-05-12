@@ -29,14 +29,7 @@ body {
     font-family: 'Roboto';
     src: url('/static/assets/Roboto-Regular.ttf') format('truetype');
     font-weight: 900;
-    font-style: normal;
 }
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
 
 
 /* buttons */
@@ -242,7 +235,6 @@ button:focus {
     box-sizing: border-box;
 }
 
-
 .container-volume {
     display: none;
     position: absolute;
@@ -255,6 +247,7 @@ button:focus {
 .container-misc {
     display: flex;
     justify-content: end;
+    z-index: 4;
 }
 
 .container-index {
@@ -272,8 +265,22 @@ button:focus {
     left: 0;
     width: 100%;
     height: 100%;
+    z-index: 1;
+}
+
+
+.container-animationsvg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.2s ease-in-out;
     pointer-events: none;
-    z-index: 2;
+    z-index: 4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    opacity: 30%;
 }
 
 /* text */
@@ -311,6 +318,10 @@ h6, h1 {
 
 .text-index {
     color: white;
+}
+
+.text-index-b {
+    font-weight: 100;
 }
 
 
@@ -397,7 +408,29 @@ svg {
     transition: color 0.2s;
 }
 
+.animationsvg {
+    opacity: 0%;
+    position: absolute;
+    width: 40%;
+    height: 40%;
+    fill: currentColor;
+    transition: opacity 0.1s;
+}
 
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
 
 
 
@@ -430,6 +463,10 @@ svg {
 	-webkit-appearance: none;
 	width: 0;
 	box-shadow: -20rem 0 0 20rem var(--yel);
+}
+
+.volume-range:focus{
+    outline: var(--yel) solid 1px;
 }
 
 .video-slider {
@@ -715,9 +752,11 @@ svg {
     outline: none;
 }
 
-textarea:focus, input:focus{
-    outline: var(--yel) solid 1px;
+.input-dialog:not(:placeholder-shown){
+    background-color: var(--yel);
+    color: var(--dark)
 }
+
 
 .text-colored {
     color: var(--yel);

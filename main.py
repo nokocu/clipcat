@@ -1,4 +1,4 @@
-# v0.18
+# v0.19
 from flask import Flask, request, render_template, jsonify, redirect, url_for, send_file, Response
 from werkzeug.utils import secure_filename
 from contextlib import redirect_stdout
@@ -213,7 +213,6 @@ def waveform(video_path):
 
 ########################################################################################################################
 
-
 if __name__ == '__main__':
     stream = StringIO()
     cleanup_temp_dir()
@@ -222,7 +221,7 @@ if __name__ == '__main__':
         api_instance = API()
         window = webview.create_window(
             'clipcat', app, width=1018, height=803, frameless=True,
-            js_api=api_instance, background_color='#33363d', min_size=(628, 553),
+            js_api=api_instance, background_color='#33363d', min_size=(714, 603),
             easy_drag=False, shadow=True, http_port=1337, focus=True)
 
         # Windows 10
@@ -233,4 +232,3 @@ if __name__ == '__main__':
         # Windows 11
         else:
             webview.start(gui="edgechromium")
-
