@@ -99,17 +99,11 @@ def log_stack(where=""):
     except KeyError:
         logger.info(f"[log_stack] @ {where} Undo Stack: empty")
 
-    # try:
-    #     logger.info(f"[log_stack] @ {where} Redo Stack: {session['redo_stack']}")
-    # except KeyError:
-    #     logger.info(f"[log_stack] @ {where} Redo Stack: empty")
-
 
 def removing(path):
     while True:
         try:
             os.remove(path)
-            # logger.info(f"[removing] File {path} removed successfully.")
             break
         except FileNotFoundError:
             logger.info(f"[removing] File {path} doesn't exist. Ignoring...")
@@ -120,3 +114,12 @@ def removing(path):
             time.sleep(2)
             break
 
+
+def webview_present():
+    user_name = os.environ.get('USERNAME')
+    path1 = "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application"
+    path2 = f"C:\\Users\\{user_name}\\AppData\\Local\\Microsoft\\EdgeWebView\\Application"
+    if os.path.exists(path1) or os.path.exists(path2):
+        return True
+    else:
+        return False

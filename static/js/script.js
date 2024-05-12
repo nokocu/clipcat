@@ -33,11 +33,11 @@ function initializeEventListeners() {
     document.getElementById("mediaA").addEventListener("click", () => setAnchor(anchorA, "anchorAValue"));
     document.getElementById("mediaB").addEventListener("click", () => setAnchor(anchorB, "anchorBValue"));
     document.getElementById("mediaProcess").addEventListener("click", processVideo);
-    document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
-    document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
-    document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
     video.addEventListener('ended', () => playButton.innerHTML = getSVG('play'));
     videoSlider.addEventListener('input', handleSliderInput);
+    document.getElementById('minimizeBtn') && document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
+    document.getElementById('maximizeBtn') && document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
+    document.getElementById('exitBtn') && document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
 }
 
 // Validate inputs and enable/disable the save button
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // animations //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function animationStart(video, action) {
-    video.style.transition = 'opacity 0.1s ease-in-out';
+    video.style.transition = 'opacity 0.2s ease-in-out';
     video.style.opacity = '0.5';
     disableInteractions();
     hideAllDialogs();
@@ -121,7 +121,7 @@ function animationEnd(video) {
         video.style.opacity = '1';
         enableInteractions();
         hideSvg();
-    }, 100);
+    }, 0);
 }
 
 function showSvg(action) {
@@ -145,7 +145,7 @@ function hideSvg() {
 
 function disableInteractions() {
     interactionsEnabled = false;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary, .btn-misc');
     mainButtons.forEach(button => {
         button.disabled = true;
     });
@@ -155,7 +155,7 @@ function disableInteractions() {
 
 function enableInteractions() {
     interactionsEnabled = true;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary');
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary, .btn-misc');
     mainButtons.forEach(button => {
         if (button.id !== "mediaProcess") {
             button.disabled = false;
@@ -201,7 +201,7 @@ function handleKeydown(event) {
         case 'w': case 'W':
             if (event.ctrlKey) {
                 event.preventDefault();
-                window.location.href = '/cleanup';
+                window.location.href = '/';
             }
             break;
         case '1': document.getElementById("mediaA").click(); break;
@@ -216,8 +216,7 @@ function handleKeydown(event) {
 
 function closeCurrentVid() {
     animationStart(video, 'close');
-    const dialog = document.querySelector('.container-dialog');
-    dialog.classList.contains('hidden') ? window.location.href = '/cleanup' : hideDialog();
+    window.location.href = '/';
 }
 
 // volume //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -472,6 +471,20 @@ function redoVideoEdit() {
 
 // Function to render video with specified settings and download it
 function renderVideo() {
+    fetch('/browser_mode')
+        .then(response => response.json())
+        .then(data => {
+            let browser_mode = data.browser_mode;
+            if (browser_mode) {
+                renderVideoBrowser();
+            } else {
+                renderVideoPy();
+            }
+        })
+        .catch(error => console.error('Error fetching browser mode:', error));
+}
+
+function renderVideoBrowser() {
     const source = video.currentSrc.substring(window.location.origin.length);
     const extension = document.getElementById("extension").value || 'copy';
     const quality = document.getElementById("quality") ? document.getElementById("quality").value : 'ultrafast';
@@ -479,7 +492,7 @@ function renderVideo() {
     const resolution = document.getElementById("resolution").value || 'copy';
     const framerate = document.getElementById("framerate") ? document.getElementById("framerate").value : 'copy';
     const filename = document.getElementById("filename");
-    const filenameText = filename ? filename.textContent : "catclipped";
+    const filenameText = filename ? filename.textContent.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim() : "catclipped";
 
     const data = {
         source: source,
@@ -492,7 +505,7 @@ function renderVideo() {
 
     animationStart(video, 'render');
 
-    fetch("render_video", {
+    fetch("render_video_browser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
@@ -503,14 +516,12 @@ function renderVideo() {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-
         if (extension !== 'copy') {
-            const filenameBase = filenameText.replace(/\.[^.]+$/, "");
-            a.download = `clipcat_${filenameBase}${extension}`;
+            let baseFilename = filenameText.replace(/\.[^/.]+$/, "");
+            a.download = `clipcat_${baseFilename}${extension}`;
         } else {
             a.download = `clipcat_${filenameText}`;
         }
-
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -519,6 +530,55 @@ function renderVideo() {
     .catch(error => {
         console.error('Error downloading the file:', error);
         animationEnd(video);
+    });
+}
+
+function renderVideoPy() {
+    const source = video.currentSrc.substring(window.location.origin.length);
+    const extension = document.getElementById("extension").value || 'copy';
+    const quality = document.getElementById("quality") ? document.getElementById("quality").value : 'ultrafast';
+    const targetsize = document.getElementById("targetsize").value || 'copy';
+    const resolution = document.getElementById("resolution").value || 'copy';
+    const framerate = document.getElementById("framerate") ? document.getElementById("framerate").value : 'copy';
+    const filename = document.getElementById("filename");
+    const filenameText = filename ? filename.textContent.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim() : "catclipped";
+
+    let target_filename;
+
+    if (extension !== 'copy') {
+        let baseFilename = filenameText.replace(/\.[^/.]+$/, "");
+        target_filename = `clipcat_${baseFilename}${extension}`;
+    } else {
+        target_filename = `clipcat_${filenameText}`;
+    }
+
+    const data = {
+        source: source,
+        extension: extension,
+        quality: quality,
+        targetsize: targetsize,
+        resolution: resolution,
+        framerate: framerate,
+        target_filename: target_filename,
+    };
+
+
+    animationStart(video, 'render');
+    fetch("/render_video_py", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.text())
+    .then(response => {
+        console.log('Video rendered:', response);
+        animationEnd(video, 'render');
+    })
+    .catch(error => {
+        console.error('Error rendering the video:', error);
+        animationEnd(video, 'render');
     });
 }
 
@@ -795,7 +855,7 @@ function setAnchor(point, anchorId) {
 
 }
 
-let isLeftMouseDown = false;
+let isRightMouseDown = false;
 let selectedAnchor = null;
 
 
@@ -823,72 +883,54 @@ function moveClosestAnchor(event, videoSlider) {
 }
 
 videoSlider.addEventListener('mousedown', function(event) {
-    if (event.button === 0) {
-        isLeftMouseDown = true;
+    if (event.button === 2) {
+        isRightMouseDown = true;
         moveClosestAnchor(event, videoSlider);
     }
 });
 
 document.addEventListener('mousemove', function(event) {
-    if (isLeftMouseDown && selectedAnchor) {
+    if (isRightMouseDown && selectedAnchor) {
         moveClosestAnchor(event, videoSlider);
         handleSliderInput();
     }
 });
 
 document.addEventListener('mouseup', function(event) {
-    if (event.button === 0) {
-        isLeftMouseDown = false;
+    if (event.button === 2) {
+        isRightMouseDown = false;
         selectedAnchor = null;
     }
 });
 
 
-// Anchor and thumb SVG //////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Anchor SVG //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function updateSvgPositions() {
     const anchorA = document.getElementById('anchorA');
     const anchorB = document.getElementById('anchorB');
     const svgA = document.getElementById('overlaySvgA');
     const svgB = document.getElementById('overlaySvgB');
-    const svgThumb = document.getElementById('overlaySvgThumb');
-    const videoSlider = document.getElementById('videoSlider');
 
-    if (anchorA && anchorB && svgA && svgB && svgThumb && videoSlider) {
+    if (anchorA && anchorB && svgA && svgB) {
         const rectA = anchorA.getBoundingClientRect();
         const rectB = anchorB.getBoundingClientRect();
-        const rectSlider = videoSlider.getBoundingClientRect();
 
-        // Calculate thumb position
-        const thumbWidth = 2;
-        const sliderValue = videoSlider.value;
-        const sliderMax = videoSlider.max || 100;
-        const sliderMin = videoSlider.min || 0;
-        const thumbPosition = ((sliderValue - sliderMin) / (sliderMax - sliderMin)) * (rectSlider.width - thumbWidth);
-        const thumbCenter = thumbPosition + (thumbWidth / 2);
-
-        // Position SVG A and B
         svgA.style.position = 'fixed';
         svgA.style.left = `${rectA.left + window.scrollX + rectA.width / 2 - 6}px`;
-        svgA.style.top = `${rectA.top + window.scrollY - 19 + 52}px`;
+        svgA.style.top = `${rectA.top + window.scrollY - 19}px`;
+
         svgB.style.position = 'fixed';
         svgB.style.left = `${rectB.left + window.scrollX + rectB.width / 2 - 6}px`;
-        svgB.style.top = `${rectB.top + window.scrollY - 19 + 52}px`;
-
-        // Position SVG Thumb above the video slider thumb
-        svgThumb.style.position = 'fixed';
-        svgThumb.style.left = `${rectSlider.left + window.scrollX + thumbPosition - 6}px`; // Adjust -10 as needed
-        svgThumb.style.top = `${rectSlider.top + window.scrollY - 12}px`; // Adjust -30 as needed
+        svgB.style.top = `${rectB.top + window.scrollY - 19}px`;
 
         svgA.classList.remove('hidden');
         svgB.classList.remove('hidden');
-        svgThumb.classList.remove('hidden');
+
+
     }
 }
-
 window.addEventListener('resize', updateSvgPositions);
-document.addEventListener('DOMContentLoaded', updateSvgPositions);
-videoSlider.addEventListener('input', updateSvgPositions); // Update position on slider change
 
 // concat //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1008,43 +1050,64 @@ document.addEventListener('DOMContentLoaded', function() {
     window.chooseFile = chooseFile;
 });
 
-// New thumb
-document.addEventListener('DOMContentLoaded', function() {
-    const overlaySvgThumb = document.getElementById('overlaySvgThumb');
-    const videoSlider = document.getElementById('videoSlider');
-    let isDragging = false;
+// Screenshot ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // Function to update the slider based on the thumb's position
-    function updateSliderFromThumbPosition(pageX) {
-        const sliderRect = videoSlider.getBoundingClientRect();
-        const thumbX = pageX - sliderRect.left; // Position within the slider
-        const sliderWidth = sliderRect.width;
-        const newSliderValue = Math.max(0, Math.min(100, (thumbX / sliderWidth) * 100));
-        videoSlider.value = newSliderValue;
-        handleSliderInput(); // Assuming you have this function to handle slider input
-    }
+function screenshot() {
+    fetch('/browser_mode')
+        .then(response => response.json())
+        .then(data => {
+            let browser_mode = data.browser_mode;
+            if (browser_mode) {
+                screenshotBrowser();
+            } else {
+                screenshotPy();
+            }
+        })
+        .catch(error => console.error('Error fetching browser mode:', error));
+}
 
-    // Mouse down on the thumb starts the drag
-    overlaySvgThumb.addEventListener('mousedown', function(event) {
-        event.preventDefault();
-        isDragging = true;
-        updateSvgPositions();
+function screenshotPy() {
+    animationStart(video, 'screenshot')
+    const timestamp = document.getElementById('currentTime').textContent;
+    fetch('/screenshot_py', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `timestamp=${encodeURIComponent(timestamp)}`
+    })
+    .then(response => response.text())
+    .then(response => {
+        animationEnd(video, 'screenshot')
+    })
+    .catch(error => {
+        console.error('Error saving screenshot:', error);
+        animationEnd(video, 'screenshot')
     });
+}
 
-    // Mouse move updates the slider if dragging
-    document.addEventListener('mousemove', function(event) {
-        if (isDragging) {
-            updateSliderFromThumbPosition(event.pageX);
-            updateSvgPositions();
-        }
+function screenshotBrowser() {
+    animationStart(video, 'screenshot')
+    const timestamp = document.getElementById('currentTime').textContent;
+    fetch('/screenshot_browser', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ timestamp: timestamp })
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'screenshot.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        animationEnd(video, 'screenshot')
     });
-
-    // Mouse up ends the drag
-    document.addEventListener('mouseup', function(event) {
-        if (isDragging) {
-            isDragging = false;
-            updateSliderFromThumbPosition(event.pageX);
-        }
-    });
-});
+}
 

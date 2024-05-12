@@ -1,10 +1,10 @@
-import webbrowser
+import os
 from ctypes import windll, Structure, c_long, byref
 import time
 import webview
+from flask import session, request
+from cat_ffmpeg import screenshot, render
 from cat_tools import logger
-import webview.platforms.edgechromium as edgechromium
-import webview.platforms.winforms as winforms
 
 # pywebview api
 SPI_GETWORKAREA = 48
@@ -58,6 +58,35 @@ class API:
     def resizedrag(self):
         resizewindow(webview.windows[0])
 
+    def save_screenshot(self, timestamp):
+        source = session.get("current_src")
+        if not source:
+            return "Source not set in session", 400
+
+        initial_directory = session.get('last_directory', "")
+        save_path = webview.windows[0].create_file_dialog(webview.SAVE_DIALOG, directory=initial_directory, save_filename='screenshot.png')
+        if save_path:
+            session['last_directory'] = os.path.dirname(save_path)
+            screenshot(source, timestamp, save_path)
+            return save_path
+        return None
+
+    def render_video(self, data):
+        data = request.get_json()
+        extension = data.get("extension")
+        targetsize = data.get("targetsize")
+        resolution = data.get("resolution")
+        framerate = data.get("framerate")
+        quality = data.get("quality")
+        source = session.get("current_src")
+        target_filename = data.get("target_filename")
+        initial_directory = session.get('last_directory', "")
+        save_path = webview.windows[0].create_file_dialog(webview.SAVE_DIALOG, directory=initial_directory, save_filename=target_filename)
+        if save_path:
+            render(src=source, ext=extension, qual=quality, size=targetsize, res=resolution, fps=framerate, out=save_path)
+            return save_path
+
+
 # drag to resize
 class POINT(Structure):
     _fields_ = [("x", c_long), ("y", c_long)]
@@ -93,20 +122,3 @@ def resizewindow(window):
             except:
                 logger.info('[doresize]: failed to calculate position changes')
         time.sleep(0.01)
-
-
-# Monkeypatch for pywebview, that launches browser if WebView2 was uninstalled from Windows11
-class CustomEdgeChrome(edgechromium.EdgeChrome):
-    def on_webview_ready(self, sender, args):
-        if not args.IsSuccess:
-            browser_mode()
-            logger.error('WebView2 initialization failed with exception:\n' + str(args.InitializationException))
-            return
-        else:
-            super().on_webview_ready(sender, args)
-
-
-def browser_mode():
-    webbrowser.open_new("http://127.0.0.1:1337/")
-
-edgechromium.EdgeChrome = CustomEdgeChrome

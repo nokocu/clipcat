@@ -1,14 +1,14 @@
-# v0.19
-from flask import Flask, request, render_template, jsonify, redirect, url_for, send_file, Response
+# v0.20
+from flask import Flask, render_template, jsonify, redirect, url_for, send_file, Response
 from werkzeug.utils import secure_filename
-from contextlib import redirect_stdout
-from io import StringIO
-import threading
 import re
 import atexit
+import multiprocessing
+import webbrowser
 from cat_ffmpeg import *
 from cat_tools import *
 from cat_pywebview import *
+from waitress import serve
 
 ########################################################################################################################
 app = Flask(__name__)
@@ -17,13 +17,16 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 webview.settings['ALLOW_DOWNLOADS'] = True
+cpu_count = multiprocessing.cpu_count()
+browser_mode = True
 
 # routes ##############################################################################################################
 @app.route('/')
 def home():
+    cleanup_temp_dir()
     session['undo_stack'] = []
     session['redo_stack'] = []
-    return render_template("index.html")
+    return render_template("index.html", browser_mode=browser_mode)
 
 @app.route('/undo', methods=['POST'])
 def handle_undo():
@@ -38,7 +41,7 @@ def handle_undo():
 
     push_current_state_to_redo(current_video)
     last_state = session['undo_stack'].pop()
-    session["src_to_wave"] = last_state
+    session["current_src"] = last_state
     video_path = f"/video/{os.path.basename(last_state)}"
     return jsonify({'success': True, 'message': f"Reverted to {last_state}", 'video_path': video_path})
 
@@ -55,17 +58,9 @@ def handle_redo():
 
     push_current_state_to_undo(current_video)
     last_state = session['redo_stack'].pop()
-    session["src_to_wave"] = last_state
+    session["current_src"] = last_state
     video_path = f"/video/{os.path.basename(last_state)}"
     return jsonify({'success': True, 'message': f"Restored {last_state}", 'video_path': video_path})
-
-@app.route('/cleanup', methods=['GET'])
-def cleanup_and_home():
-    thread = threading.Thread(target=cleanup_temp_dir)
-    thread.start()
-    session['undo_stack'].clear()
-    session['redo_stack'].clear()
-    return redirect(url_for('home'))
 
 
 @app.route('/editor', methods=['GET', 'POST'])
@@ -79,13 +74,14 @@ def editor():
         file_name_ext = os.path.splitext(filename)[1]
         directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
         video_file.save(directory)
-        session["src_to_wave"] = directory
+        session["current_src"] = directory
         session['file_name'] = filename
 
     timestamp = int(time.time())
     video_path = f"/video/main{file_name_ext}?v={timestamp}"
     width, height, fps = metadata(directory)
-    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name)
+    return render_template("editor.html", video_path=video_path, width=width, height=height,
+                           fps=fps, file_name=file_name, browser_mode=browser_mode)
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
@@ -150,7 +146,7 @@ def video(filename):
     return rv
 
 
-@app.route('/render_video', methods=['POST'])
+@app.route('/render_video_browser', methods=['POST'])
 def render_video():
     data = request.get_json()
     extension = data.get("extension")
@@ -166,6 +162,17 @@ def render_video():
     except Exception as e:
         logger.error(f"[render_video] Error during video rendering: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/render_video_py', methods=['POST'])
+def render_video_pywebview():
+    data = request.json
+    api = API()
+    result = api.render_video(data)
+    if result:
+        return "Video rendered to {}".format(result), 200
+    else:
+        return "Failed to render video", 400
 
 
 @app.route('/upload_to_concut', methods=['POST'])
@@ -207,28 +214,56 @@ def concat_files():
 @app.route('/waveform/<path:video_path>')
 def waveform(video_path):
     width = request.args.get('width', default=918)
-    audio_path = extract_audio(session["src_to_wave"])
+    audio_path = extract_audio(session["current_src"])
     waveform_image = generate_waveform(audio_path, width)
     return jsonify({'image': waveform_image})
 
+
+@app.route('/screenshot_browser', methods=['POST'])
+def send_screenshot():
+    data = request.get_json()
+    timestamp = data['timestamp']
+    source = session["current_src"]
+    last_directory = session.get('last_directory', temp_dir_path)
+
+    destination = os.path.join(last_directory, "screenshot.png")
+    screenshot(source, timestamp, destination)
+
+    return send_file(destination, as_attachment=True)
+
+@app.route('/screenshot_py', methods=['POST'])
+def send_screenshot_pywebview():
+    timestamp = request.form.get('timestamp')
+    api = API()
+    result = api.save_screenshot(timestamp)
+    if result:
+        return "Screenshot saved to {}".format(result), 200
+    else:
+        return "Failed to save screenshot", 400
+
+@app.route('/browser_mode')
+def get_browser_mode():
+    return jsonify(browser_mode=browser_mode)
+
 ########################################################################################################################
 
+def run_browser_mode():
+    webbrowser.open("http://localhost:1337/")
+    serve(app, host='127.0.0.1', port=1337, threads=cpu_count)
+
+def run_webview():
+    global browser_mode
+    browser_mode = False
+    window = webview.create_window(
+        'clipcat', app, width=1018, height=803, min_size=(714, 603),
+        frameless=True, easy_drag=False, shadow=True, focus=True,
+        background_color='#33363d', js_api=api_instance)
+    webview.start(debug=False)
+
 if __name__ == '__main__':
-    stream = StringIO()
-    cleanup_temp_dir()
     atexit.register(cleanup_temp_dir)
-    with redirect_stdout(stream):
-        api_instance = API()
-        window = webview.create_window(
-            'clipcat', app, width=1018, height=803, frameless=True,
-            js_api=api_instance, background_color='#33363d', min_size=(714, 603),
-            easy_drag=False, shadow=True, http_port=1337, focus=True)
+    api_instance = API()
+    run_webview() if webview_present() else run_browser_mode()
 
-        # Windows 10
-        if not winforms.is_chromium:
-            browser_mode()
-            app.run(port=1337)
 
-        # Windows 11
-        else:
-            webview.start(gui="edgechromium")
+

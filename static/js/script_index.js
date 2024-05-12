@@ -35,9 +35,9 @@ document.getElementById('fileInput').addEventListener('change', function() {
 document.addEventListener('keydown', event => {
     if (event.key === 'Escape') pywebview.api.window_close();
 });
-document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
-document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
-document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
+document.getElementById('minimizeBtn') && document.getElementById('minimizeBtn').addEventListener('click', () => pywebview.api.window_minimize());
+document.getElementById('maximizeBtn') && document.getElementById('maximizeBtn').addEventListener('click', () => pywebview.api.window_maximize());
+document.getElementById('exitBtn') && document.getElementById('exitBtn').addEventListener('click', () => pywebview.api.window_close());
 
 // Cat
 document.addEventListener('mousemove', function(event) {
@@ -154,3 +154,4 @@ function animationInvalid() {
 
 // Dissalow right click
 window.addEventListener("contextmenu", e => e.preventDefault());
+

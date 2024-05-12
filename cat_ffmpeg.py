@@ -48,7 +48,7 @@ def trim(source, a, b, destination, video_length):
         cmd = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
         subprocess.run(cmd, startupinfo=si)
 
-    session["src_to_wave"] = destination
+    session["current_src"] = destination
 
 
 # metadata grabbing
@@ -68,13 +68,14 @@ def metadata(video_path):
 
 
 # rendering
-def render(src, ext, qual, size, res, fps):
+def render(src, ext, qual, size, res, fps, out=None):
     start_time = time.time()
     logger.info("[render]: starting")
     os.environ['SVT_LOG'] = 'error'
     src_path, src_ext = os.path.splitext(src)
-    out0 = os.path.join(temp_dir_path, f"render.")
-    out = f'{out0}' + (src_ext[1:] if ext == "copy" else ext[1:])
+    if not out:
+        out0 = os.path.join(temp_dir_path, f"render.")
+        out = f'{out0}' + (src_ext[1:] if ext == "copy" else ext[1:])
     session['rendered_vid'] = out
     cmd = [ffmpeg_path, '-y', '-i', src, '-threads', '0', "-v", "error"]
 
@@ -169,3 +170,22 @@ def extract_audio(video_path):
     cmd = [ffmpeg_path, '-i', video_path, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', audio_path, '-y', '-v', "error"]
     subprocess.run(cmd, startupinfo=si)
     return audio_path
+
+# screenshoting
+def screenshot(source, timestamp, destination):
+    cmd = [
+        ffmpeg_path,
+        '-ss', timestamp,
+        '-i', source,
+        '-frames:v', '1',
+        '-compression_level', '0',
+        destination,
+        '-y',
+        '-loglevel', 'error',
+    ]
+
+    try:
+        subprocess.run(cmd, startupinfo=si)
+        return destination
+    except subprocess.CalledProcessError as e:
+        return False

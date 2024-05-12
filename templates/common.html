@@ -1,0 +1,68 @@
+<div id="resizeborder-right" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+<div id="resizeborder-bottom" class="resize-border" onmousedown="pywebview.api.resizedrag()"></div>
+
+<div class="container-volume" id="volumeSliderContainer" style="display: none;">
+    <input class="volume-range" type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
+</div>
+
+<div class="overlay-svg-container">
+    <svg id="overlaySvgA" class="hidden" style="pointer-events: none" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="#bcbdbf" viewBox="0 0 16 16"><path d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M9.283 4.002V12H7.971V5.338h-.065L6.072 6.656V5.385l1.899-1.383z"></path></svg>
+    <svg id="overlaySvgB" class="hidden" style="pointer-events: none" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="#bcbdbf" viewBox="0 0 16 16"><path d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M6.646 6.24v.07H5.375v-.064c0-1.213.879-2.402 2.637-2.402 1.582 0 2.613.949 2.613 2.215 0 1.002-.6 1.667-1.287 2.43l-.096.107-1.974 2.22v.077h3.498V12H5.422v-.832l2.97-3.293c.434-.475.903-1.008.903-1.705 0-.744-.557-1.236-1.313-1.236-.843 0-1.336.615-1.336 1.306"></path></svg>
+</div>
+
+<div id="overlay" class="overlay hidden"></div>
+<div id="dialogTargetsize" class="container-dialog hidden">
+    <div class="container-dialog-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path d="M12.5 0H5.914a1.5 1.5 0 0 0-1.06.44L2.439 2.853A1.5 1.5 0 0 0 2 3.914V14.5A1.5 1.5 0 0 0 3.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 12.5 0m-7 2.75a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m2 0a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m2.75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 1.5 0m1.25-.75a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75"/></svg>
+        <h6 class="text-label"><span>Max filesize</span></h6>
+    </div>
+    <button class="btn-dialog" id="targetsize1" value="1024"><span class="text-colored">1GB</span>   TikTok</button>
+    <button class="btn-dialog" id="targetsize2" value="512"><span class="text-colored">512MB</span> X/Twitter</button>
+    <button class="btn-dialog" id="targetsize3" value="250"><span class="text-colored">250MB</span> Streamable</button>
+    <button class="btn-dialog" id="targetsize4" value="100"><span class="text-colored">100MB</span> Instagram</button>
+    <button class="btn-dialog" id="targetsize5" value="25"><span class="text-colored">25MB</span>  Discord</button>
+    <input  class="input-dialog" id="targetsizeCustom" type="text" value="" placeholder="Custom...">
+</div>
+
+<div id="dialogResolution" class="container-dialog hidden">
+    <div class="container-dialog-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path d="M10.53 5.968h-.843v4.06h.843c1.117 0 1.622-.667 1.622-2.02 0-1.354-.51-2.04-1.622-2.04"/><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm5.396 3.001V11H6.209V8.43H3.687V11H2.5V5.001h1.187v2.44h2.522V5h1.187zM8.5 11V5.001h2.188c1.824 0 2.685 1.09 2.685 2.984C13.373 9.893 12.5 11 10.69 11z"/></svg>
+        <h6 class="text-label"><span>Resolution</span></h6>
+    </div>
+    <button class="btn-dialog" id="resolution1" value="3840x2160"><span class="text-colored">4K</span> 3840x2160px</button>
+    <button class="btn-dialog" id="resolution2" value="2560x1440"><span class="text-colored">1440p</span> 2560x1440px</button>
+    <button class="btn-dialog" id="resolution3" value="1920x1080"><span class="text-colored">1080p</span> 1920x1080px</button>
+    <button class="btn-dialog" id="resolution4" value="1280x720"><span class="text-colored">720p</span> 1280x720px</button>
+    <input  class="input-dialog" id="resolutionCustom" type="text" placeholder="Custom...">
+</div>
+
+<div id="dialogExtension" class="container-dialog hidden">
+    <div class="container-dialog-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" class="dialog-svg"><path fill-rule="evenodd" d="M14 4.5V14a2 2 0 0 1-2 2v-1a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM.706 15.849v-2.66h.038l.952 2.16h.516l.946-2.16h.038v2.66h.715V11.85h-.8l-1.14 2.596h-.026L.805 11.85H0v3.999zm5.278-3.999h-1.6v3.999h.792v-1.342h.803q.43 0 .732-.173.304-.175.463-.474a1.4 1.4 0 0 0 .161-.677q0-.375-.158-.677a1.2 1.2 0 0 0-.46-.477 1.4 1.4 0 0 0-.733-.179m.545 1.333a.8.8 0 0 1-.085.38.57.57 0 0 1-.237.241.8.8 0 0 1-.375.082h-.66V12.48h.66q.329 0 .513.181.184.183.184.522m1.505-.032q.4-.65.791-1.301h1.14v2.62h.49v.638h-.49v.741h-.741v-.741H7.287v-.648q.353-.66.747-1.31Zm-.029 1.298v.02h1.219v-2.021h-.041q-.302.477-.607.984-.3.507-.571 1.017"/></svg>
+        <h6 class="text-label"><span>Extension</span></h6>
+    </div>
+    <button class="btn-dialog" id="extension1" value=".mp4">.mp4</button>
+    <button class="btn-dialog" id="extension2" value=".mkv">.mkv</button>
+    <button class="btn-dialog" id="extension3" value=".webm">.webm</button>
+</div>
+
+<div id="dialogPresets" class="container-dialog hidden">
+    <div class="container-dialog-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="dialog-svg" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M9.05 3a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0V3zM4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M2.05 8a2.5 2.5 0 0 1 4.9 0H16v1H6.95a2.5 2.5 0 0 1-4.9 0H0V8zm9.45 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3m-2.45 1a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0v-1z"/></svg>
+        <h6 class="text-label"><span>Templates</span></h6>
+    </div>
+    <button class="btn-dialog" id="preset1" value="extension1 resolution3 targetsize5"><span class="text-colored">MP4 </span>1080p 25MB</button>
+    <button class="btn-dialog" id="preset2" value="extension1 resolution4 targetsize5"><span class="text-colored">MP4 </span>720p 25MB</button>
+    <button class="btn-dialog" id="preset3" value="extension1 copy targetsize5"><span class="text-colored">MP4 </span>25MB</button>
+    <button class="btn-dialog" id="preset4" value="extension3 resolution3 targetsize5"><span class="text-colored">WEBM </span>1080p 25MB</button>
+    <button class="btn-dialog" id="preset5" value="extension3 resolution4 targetsize5"><span class="text-colored">WEBM </span>720p 25MB</button>
+    <button class="btn-dialog" id="preset6" value="extension3 copy targetsize5"><span class="text-colored">WEBM </span>25MB</button>
+</div>
+
+<div class="hidden">
+    <input class="text-secondary" type="text" id="targetsize" value="">
+    <input class="text-secondary" type="text" id="resolution" value="">
+    <input class="text-secondary" type="text" id="extension" value="">
+</div>
+
+<input type="file" id="fileInput" style="display: none;" accept="video/*">
