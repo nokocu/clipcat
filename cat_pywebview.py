@@ -2,9 +2,11 @@ import os
 from ctypes import windll, Structure, c_long, byref
 import time
 import webview
-from flask import session, request
+from flask import session, request, jsonify
 from cat_ffmpeg import screenshot, render
-from cat_tools import logger
+from cat_tools import logging
+
+logger = logging.getLogger(__name__)
 
 # pywebview api
 SPI_GETWORKAREA = 48
@@ -85,6 +87,10 @@ class API:
         if save_path:
             render(src=source, ext=extension, qual=quality, size=targetsize, res=resolution, fps=framerate, out=save_path)
             return save_path
+        else:
+            return None
+
+
 
 
 # drag to resize

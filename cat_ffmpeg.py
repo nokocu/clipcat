@@ -4,11 +4,12 @@ import os
 import subprocess
 import time
 from cat_tools import temp_dir_path, removing
-from cat_tools import logger
+from cat_tools import logging
 
+logger = logging.getLogger(__name__)
 
 # ffmpeg path, hide subprocess cmd
-ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ffmpeg/ffmpeg.exe')
+ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dependencies/ffmpeg.exe')
 si = subprocess.STARTUPINFO()
 si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 si.wShowWindow = subprocess.SW_HIDE

@@ -1,3 +1,4 @@
+import subprocess
 import tempfile
 from flask import session
 from PIL import Image, ImageDraw
@@ -7,13 +8,16 @@ import time
 import wave
 import base64
 import logging
+import winreg
+import ctypes
+import requests
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 temp_dir_path = os.path.join(tempfile.gettempdir(), "temp_nkc")
 os.makedirs(temp_dir_path, exist_ok=True)
 
-
+# undo
 def push_current_state_to_undo(video_path):
     if len(session['undo_stack']) >= 4:
         oldest_path = session['undo_stack'].pop(0)
@@ -23,6 +27,8 @@ def push_current_state_to_undo(video_path):
     session.modified = True
     log_stack(where="push")
 
+
+# redo
 def push_current_state_to_redo(video_path):
     if len(session['redo_stack']) >= 4:
         oldest_path = session['redo_stack'].pop(0)
@@ -33,6 +39,7 @@ def push_current_state_to_redo(video_path):
     log_stack(where="push")
 
 
+# cleanup
 def cleanup_temp_dir():
     for filename in os.listdir(temp_dir_path):
         file_path = os.path.join(temp_dir_path, filename)
@@ -40,6 +47,7 @@ def cleanup_temp_dir():
             removing(file_path)
 
 
+# waveform
 def generate_waveform(audio_path, width):
     width = int(width)
 
@@ -92,7 +100,7 @@ def generate_waveform(audio_path, width):
 
         return encoded
 
-
+# logging undo/redo stack
 def log_stack(where=""):
     try:
         logger.info(f"[log_stack] @ {where} Undo Stack: {session['undo_stack']}")
@@ -100,6 +108,7 @@ def log_stack(where=""):
         logger.info(f"[log_stack] @ {where} Undo Stack: empty")
 
 
+# delete function
 def removing(path):
     while True:
         try:
@@ -109,17 +118,79 @@ def removing(path):
             logger.info(f"[removing] File {path} doesn't exist. Ignoring...")
             break
         except Exception as e:
-            logger.error(f"[removing] Failed to remove {path}: {e}.")
-            logger.error(f"[removing] Retrying...")
-            time.sleep(2)
+            logger.error(f"[removing] Retrying removing {path}: {e}.")
+            time.sleep(1)
             break
 
 
-def webview_present():
-    user_name = os.environ.get('USERNAME')
-    path1 = "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application"
-    path2 = f"C:\\Users\\{user_name}\\AppData\\Local\\Microsoft\\EdgeWebView\\Application"
-    if os.path.exists(path1) or os.path.exists(path2):
-        return True
-    else:
+# checks if webview installed
+def webview_exists():
+    keys = [(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"),
+            (winreg.HKEY_LOCAL_MACHINE,
+             r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}")]
+    edge_path = None
+    for root, sub_key in keys:
+        try:
+            with winreg.OpenKey(root, sub_key) as key:
+                value, _ = winreg.QueryValueEx(key, "SilentUninstall")
+                path = value.split("Installer")[0].strip('"').rsplit("\\", 1)[0]
+                edge_path = f"{path}\\msedgewebview2.exe"
+                if os.path.exists(edge_path):
+                    return True
+        except FileNotFoundError:
+            continue
+
+    print("[webview_exists] false")
+    return False
+
+def internet_check():
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    try:
+        response = requests.get('http://google.com', timeout=3)
+        return True if response.status_code == 200 else False
+    except requests.ConnectionError:
         return False
+
+# installs webview
+def webview_install():
+    source = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dependencies\\Webview2Setup.exe')
+    command = [source, '/silent', '/install']
+    try:
+        logger.info("[webview_install] starting")
+        result = subprocess.run(command, check=True, text=True, capture_output=True)
+        logger.info("[webview_install] success")
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.info(f"[webview_install] failed: {e.returncode=} {e.output=} {e.stderr=}")
+        return webview_install_elevated(command)
+
+
+# installs webview with elevation when normal install thinks edge is installed (corrupted files)
+def webview_install_elevated(command):
+    if ctypes.windll.shell32.IsUserAnAdmin():
+        try:
+            logger.info("[webview_install_elevated] start")
+            result = subprocess.run(command, check=True, text=True, capture_output=True)
+            logger.info("[webview_install_elevated] success")
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"[webview_install_elevated] failed: {e.returncode=} {e.output=} {e.stderr=}")
+            return False
+    else:
+        executable = command[0]
+        parameters = ','.join(f'"{arg}"' for arg in command[1:])
+        if os.name == 'nt':
+            cmd = f'powershell Start-Process "{executable}" -ArgumentList {parameters} -Verb runAs -Wait'
+            try:
+                logger.info("[webview_install_elevated] start")
+                proc = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
+                if proc.returncode == 0:
+                    logger.info("[webview_install_elevated] success as admin")
+                    return True
+                else:
+                    logger.error(f"[webview_install_elevated] admin execution failed with return code {proc.returncode}")
+                    return False
+            except subprocess.CalledProcessError as e:
+                logger.error(f"[webview_install_elevated] admin request failed: {e.returncode=} {e.output=} {e.stderr=}")
+                return False
+

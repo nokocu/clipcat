@@ -419,7 +419,7 @@ svg {
 
 @keyframes pulse {
     0% { opacity: 1; }
-    50% { opacity: 0.5; }
+    50% { opacity: 0.2; }
     100% { opacity: 1; }
 }
 
@@ -429,7 +429,7 @@ svg {
 }
 
 .pulse-animation {
-    animation: pulse 2s infinite;
+    animation: pulse 1s infinite;
 }
 
 

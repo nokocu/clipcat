@@ -155,3 +155,20 @@ function animationInvalid() {
 // Dissalow right click
 window.addEventListener("contextmenu", e => e.preventDefault());
 
+// Browser mode inactivity shutdown
+function inactivity_monitor() {
+    setInterval(() => {
+        fetch("http://localhost:1337/browser_mode_inactivity")
+            .then(response => response.json())
+            .catch(error => console.error('Error:', error));
+    }, 1000);
+}
+
+fetch('/browser_mode')
+    .then(response => response.json())
+    .then(data => {
+        let browser_mode = data.browser_mode;
+        if (browser_mode) {
+            inactivity_monitor();
+        }
+    });

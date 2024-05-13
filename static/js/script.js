@@ -145,7 +145,7 @@ function hideSvg() {
 
 function disableInteractions() {
     interactionsEnabled = false;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary, .btn-misc');
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary, .btn-misc, .btn-dialog');
     mainButtons.forEach(button => {
         button.disabled = true;
     });
@@ -155,7 +155,7 @@ function disableInteractions() {
 
 function enableInteractions() {
     interactionsEnabled = true;
-    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary, .btn-misc');
+    const mainButtons = document.querySelectorAll('.btn-main, .btn-secondary, .btn-misc, .btn-dialog');
     mainButtons.forEach(button => {
         if (button.id !== "mediaProcess") {
             button.disabled = false;
@@ -571,13 +571,19 @@ function renderVideoPy() {
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.text())
+    .then(response => {
+        if (response.ok) {
+            return response.text();
+        } else {
+            return response.text().then(text => { throw new Error(text); });
+        }
+    })
     .then(response => {
         console.log('Video rendered:', response);
         animationEnd(video, 'render');
     })
     .catch(error => {
-        console.error('Error rendering the video:', error);
+        console.log('Error rendering the video:', error.message);
         animationEnd(video, 'render');
     });
 }
@@ -819,6 +825,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateTargetValue(dialog, btn.value);
             }
         });
+       setTimeout(() => {renderVideo();}, 200);
     }
 
     function deactivatePresets() {
@@ -1111,3 +1118,20 @@ function screenshotBrowser() {
     });
 }
 
+// Browser mode inactivity shutdown
+function inactivity_monitor() {
+    setInterval(() => {
+        fetch("http://localhost:1337/browser_mode_inactivity")
+            .then(response => response.json())
+            .catch(error => console.error('Error:', error));
+    }, 1000);
+}
+
+fetch('/browser_mode')
+    .then(response => response.json())
+    .then(data => {
+        let browser_mode = data.browser_mode;
+        if (browser_mode) {
+            inactivity_monitor();
+        }
+    });

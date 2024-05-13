@@ -1,5 +1,7 @@
-# v0.20
-from flask import Flask, render_template, jsonify, redirect, url_for, send_file, Response
+# v0.21
+import threading
+
+from flask import Flask, render_template, jsonify, send_file, Response
 from werkzeug.utils import secure_filename
 import re
 import atexit
@@ -17,8 +19,10 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 webview.settings['ALLOW_DOWNLOADS'] = True
+logger = logging.getLogger(__name__)
 cpu_count = multiprocessing.cpu_count()
 browser_mode = True
+last_active_time = time.time()
 
 # routes ##############################################################################################################
 @app.route('/')
@@ -172,7 +176,7 @@ def render_video_pywebview():
     if result:
         return "Video rendered to {}".format(result), 200
     else:
-        return "Failed to render video", 400
+        return "No save path selected by the user", 400
 
 
 @app.route('/upload_to_concut', methods=['POST'])
@@ -245,25 +249,46 @@ def send_screenshot_pywebview():
 def get_browser_mode():
     return jsonify(browser_mode=browser_mode)
 
+@app.route('/browser_mode_inactivity')
+def heartbeat():
+    global last_active_time
+    last_active_time = time.time()
+    return jsonify({"status": "alive"})
+
 ########################################################################################################################
 
+def check_for_inactivity():
+    global last_active_time
+    time.sleep(5)
+    while True:
+        if time.time() - last_active_time > 3:
+            os._exit(0)
+        time.sleep(1)
+
 def run_browser_mode():
+    threading.Thread(target=check_for_inactivity, daemon=True).start()
     webbrowser.open("http://localhost:1337/")
     serve(app, host='127.0.0.1', port=1337, threads=cpu_count)
 
 def run_webview():
+    logger.info("running_webview...")
     global browser_mode
     browser_mode = False
-    window = webview.create_window(
-        'clipcat', app, width=1018, height=803, min_size=(714, 603),
-        frameless=True, easy_drag=False, shadow=True, focus=True,
-        background_color='#33363d', js_api=api_instance)
-    webview.start(debug=False)
+    api_instance = API()
+    window = webview.create_window('clipcat', app, width=1264, height=944, min_size=(714, 603),
+                                   frameless=True, easy_drag=False, shadow=True, focus=True,
+                                   background_color='#33363d', js_api=api_instance)
+    webview.start(debug=True, gui="edgechromium")
 
 if __name__ == '__main__':
     atexit.register(cleanup_temp_dir)
-    api_instance = API()
-    run_webview() if webview_present() else run_browser_mode()
-
-
-
+    if webview_exists():
+        run_webview()
+    else:
+        if internet_check():
+            if webview_install():
+                run_webview()
+            else:
+                run_browser_mode()
+        else:
+            run_browser_mode()
