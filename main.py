@@ -1,7 +1,7 @@
-# v0.21
+# v0.22
 import threading
 
-from flask import Flask, render_template, jsonify, send_file, Response
+from flask import Flask, render_template, jsonify, send_file, Response, redirect, url_for
 from werkzeug.utils import secure_filename
 import re
 import atexit
@@ -67,25 +67,54 @@ def handle_redo():
     return jsonify({'success': True, 'message': f"Restored {last_state}", 'video_path': video_path})
 
 
-@app.route('/editor', methods=['GET', 'POST'])
+@app.route('/upload', methods=['POST'])
+def upload():
+    video_files = request.files.getlist('video_files')
+    file_paths = []
+
+    if len(video_files) > 1:
+        for video_file in video_files:
+            filename = secure_filename(video_file.filename)
+            file_name_ext = os.path.splitext(filename)[1]
+            directory = os.path.join(temp_dir_path, f"{filename}{file_name_ext}")
+            video_file.save(directory)
+            file_paths.append(directory)
+
+        filename = secure_filename(video_files[0].filename)
+        file_name_ext = os.path.splitext(filename)[1]
+        destination = os.path.join(temp_dir_path, f"main{file_name_ext}")
+        print(file_paths)
+        concat(file_paths, destination)
+        for file in file_paths:
+            removing(file)
+        session["current_src"] = destination
+        session['file_name'] = filename
+
+    else:
+        for video_file in video_files:
+            filename = secure_filename(video_file.filename)
+            file_name_ext = os.path.splitext(filename)[1]
+            directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
+            video_file.save(directory)
+            file_paths.append(directory)
+        session["current_src"] = file_paths[0]
+        session['file_name'] = video_files[0].filename
+
+    return redirect(url_for('editor'))
+
+@app.route('/editor', methods=['GET'])
 def editor():
     file_name = session.get('file_name', 'Default Video')
     file_name_ext = os.path.splitext(file_name)[1]
     directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
-    if request.method == 'POST':
-        video_file = request.files['video_file']
-        filename = secure_filename(video_file.filename)
-        file_name_ext = os.path.splitext(filename)[1]
-        directory = os.path.join(temp_dir_path, f"main{file_name_ext}")
-        video_file.save(directory)
-        session["current_src"] = directory
-        session['file_name'] = filename
-
     timestamp = int(time.time())
     video_path = f"/video/main{file_name_ext}?v={timestamp}"
-    width, height, fps = metadata(directory)
-    return render_template("editor.html", video_path=video_path, width=width, height=height,
-                           fps=fps, file_name=file_name, browser_mode=browser_mode)
+    try:
+        width, height, fps = metadata(directory)
+    except TypeError:
+        logger.info("[/editor] Error grabbing metadata")
+        width, height, fps = "", "", ""
+    return render_template("editor.html", video_path=video_path, width=width, height=height, fps=fps, file_name=file_name)
 
 @app.route("/process_video", methods=["POST"])
 def process_video():
@@ -179,41 +208,47 @@ def render_video_pywebview():
         return "No save path selected by the user", 400
 
 
-@app.route('/upload_to_concut', methods=['POST'])
-def upload_file():
-    file = request.files['file']
-    filename = secure_filename(file.filename)
-    dragged_vid = os.path.join(temp_dir_path, filename)
-    file.save(dragged_vid)
-    session['dragged_vid'] = dragged_vid
-    return jsonify({'success': True, 'message': f'File uploaded to {dragged_vid}'}), 200
+@app.route('/upload_to_concat', methods=['POST'])
+def upload_files():
+    files = request.files.getlist('file[]')
+    file_paths = []
+    for file in files:
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(temp_dir_path, filename)
+        file.save(temp_path)
+        file_paths.append(temp_path)
+    session['uploaded_files'] = file_paths
+    return jsonify({'success': True, 'message': f'Files uploaded successfully', 'files': file_paths}), 200
 
 
-@app.route('/concat_both', methods=['POST'])
+@app.route('/concat', methods=['POST'])
 def concat_files():
-    data = request.get_json()
-    video_filename = data.get("video").split('/')[-1].split('?')[0]
-    base_filename = video_filename.rsplit('.', 1)[0]
-    ext = os.path.splitext(video_filename)[1]
-    timestamp = int(time.time())
-    source_to_concat = os.path.join(temp_dir_path, f"{base_filename}{ext}")
-    dragged_vid = session.get('dragged_vid')
-    dragged_ext = os.path.splitext(dragged_vid)[1]
-    output_name_without_digits = ''.join([char for char in base_filename if not char.isdigit()])
-    output_from_concat = os.path.join(temp_dir_path, f"{output_name_without_digits}{timestamp}{ext}")
+    uploaded_files = session.get('uploaded_files', [])
+    if not uploaded_files:
+        return jsonify({'error': 'No files uploaded'}), 400
 
-    if ext != dragged_ext:
+    extensions = {os.path.splitext(file)[1] for file in uploaded_files}
+    logging.debug(f"Extensions found: {extensions}")
+
+    if len(extensions) > 1:
         return jsonify({'error': 'File types do not match'}), 400
 
-    push_current_state_to_undo(source_to_concat)
-    concat(source_to_concat, dragged_vid, output_from_concat)
+    ext = extensions.pop()
+    timestamp = int(time.time())
+    output_filename = f"concatenated_{timestamp}{ext}"
+    output_path = os.path.join(temp_dir_path, output_filename)
 
-    for file in session['redo_stack']:
-        removing(file)
-    session['redo_stack'].clear()
+    push_current_state_to_undo(session["current_src"])
+    sources = [session["current_src"]] + uploaded_files
+    concat(sources, output_path)
+    session["current_src"] = output_path
+    for file_path in uploaded_files:
+        removing(file_path)
 
-    response_data = {"output": "/video/" + os.path.basename(output_from_concat)}
-    return jsonify(response_data)
+    session.pop('uploaded_files', None)
+    response_data = {"output": "/video/" + os.path.basename(output_path)}
+    return jsonify(response_data), 200
+
 
 @app.route('/waveform/<path:video_path>')
 def waveform(video_path):
@@ -255,6 +290,7 @@ def heartbeat():
     last_active_time = time.time()
     return jsonify({"status": "alive"})
 
+
 ########################################################################################################################
 
 def check_for_inactivity():
@@ -275,10 +311,10 @@ def run_webview():
     global browser_mode
     browser_mode = False
     api_instance = API()
-    window = webview.create_window('clipcat', app, width=1264, height=944, min_size=(714, 603),
+    window = webview.create_window('clipcat', app, width=1264, height=944, min_size=(791, 644),
                                    frameless=True, easy_drag=False, shadow=True, focus=True,
                                    background_color='#33363d', js_api=api_instance)
-    webview.start(debug=True, gui="edgechromium")
+    webview.start(debug=False, gui="edgechromium")
 
 if __name__ == '__main__':
     atexit.register(cleanup_temp_dir)
@@ -292,3 +328,4 @@ if __name__ == '__main__':
                 run_browser_mode()
         else:
             run_browser_mode()
+

@@ -11,6 +11,8 @@ import logging
 import winreg
 import ctypes
 import requests
+from PIL import Image, ImageFilter
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -194,3 +196,30 @@ def webview_install_elevated(command):
                 logger.error(f"[webview_install_elevated] admin request failed: {e.returncode=} {e.output=} {e.stderr=}")
                 return False
 
+
+# effects - blur masks
+def combine_masks(masks_path, output_mask_path, areas, aspect_ratio, filter_type):
+    mask_size = None
+    combined_mask = None
+    for mask_name, settings in areas.items():
+        if settings["Enabled"]:
+            if aspect_ratio == "4:3":
+                mask_file = mask_name + "43.png"
+            else:
+                mask_file = mask_name + ".png"
+            mask_path = os.path.join(masks_path, mask_file)
+            mask = Image.open(mask_path).convert("RGBA")
+            edge_softness = settings.get("EdgeSoftness", 0)
+            if edge_softness > 0:
+                mask = mask.filter(ImageFilter.GaussianBlur(radius=edge_softness))
+
+            if combined_mask is None:
+                mask_size = mask.size
+                combined_mask = Image.new('RGBA', mask_size, (0, 0, 0, 0))
+            combined_mask = Image.alpha_composite(combined_mask, mask)
+
+    if combined_mask:
+        combined_mask = combined_mask.convert("L")
+        black_background = Image.new('RGB', mask_size, (0, 0, 0))
+        white_background = Image.new('RGB', mask_size, (255, 255, 255))
+        combined_mask.save(output_mask_path)

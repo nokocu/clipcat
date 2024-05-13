@@ -3,8 +3,7 @@ from pymediainfo import MediaInfo
 import os
 import subprocess
 import time
-from cat_tools import temp_dir_path, removing
-from cat_tools import logging
+from cat_tools import temp_dir_path, removing, combine_masks, logging
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +15,22 @@ si.wShowWindow = subprocess.SW_HIDE
 
 
 # concatenating
-def concat(source_1, source_2, destination):
-    temp_txt_path = os.path.join(temp_dir_path, "temp_concat_list.txt")
-    with open(temp_txt_path, 'w') as temp_txt:
-        temp_txt.write(f"file '{source_1}'\n")
-        temp_txt.write(f"file '{source_2}'\n")
+def concat(sources, destination):
+    temp_txt_path = os.path.join(os.path.dirname(destination), "temp_concat_list.txt")
+    with open(temp_txt_path, 'w', encoding='utf-8') as temp_txt:
+        for source in sources:
+            logger.info(f"{source=}")
+            temp_txt.write(f"file '{source.replace(os.sep, '/')}'\n")
     cmd = [ffmpeg_path, "-y", "-safe", "0", "-f", "concat", "-i", temp_txt_path, "-c", "copy", destination, "-loglevel", "error"]
-    subprocess.run(cmd, startupinfo=si)
-    removing(temp_txt_path)
-
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.info(f"[concat] Error during ffmpeg processing: {e}")
+        return False
+    finally:
+        os.remove(temp_txt_path)
+        pass
+    return True
 
 # trimming
 def trim(source, a, b, destination, video_length):
@@ -37,12 +43,12 @@ def trim(source, a, b, destination, video_length):
     if b == video_length:
         cmd = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", destination, "-y", "-loglevel", "error"]
         subprocess.run(cmd, startupinfo=si)
-    elif not a == "00:00.000":
+    elif a != "00:00.000":
         cmd = [ffmpeg_path, "-ss", "0", "-to", a, "-i", source, "-c", "copy", temp_a_path, "-y", "-loglevel", "error"]
         subprocess.run(cmd, startupinfo=si)
         cmd = [ffmpeg_path, "-ss", b, "-to", "999999999", "-i", source, "-c", "copy", temp_b_path, "-y", "-loglevel", "error"]
         subprocess.run(cmd, startupinfo=si)
-        concat(temp_a_path, temp_b_path, destination)
+        concat([temp_a_path, temp_b_path], destination)
         removing(temp_a_path)
         removing(temp_b_path)
     elif a == "00:00.000":
@@ -54,18 +60,13 @@ def trim(source, a, b, destination, video_length):
 
 # metadata grabbing
 def metadata(video_path):
-    try:
-        media_info = MediaInfo.parse(video_path)
-        for track in media_info.tracks:
-            if track.track_type == 'Video':
-                width = track.width
-                height = track.height
-                fps = track.frame_rate
-                return width, height, float(fps)
-
-    except Exception as e:
-        logger.error(f"[metadata] Failed to extract video metadata: {str(e)}")
-        return "Unknown", "Unknown", "Unknown"
+    media_info = MediaInfo.parse(video_path)
+    for track in media_info.tracks:
+        if track.track_type == 'Video':
+            width = track.width
+            height = track.height
+            fps = track.frame_rate
+            return width, height, float(fps)
 
 
 # rendering
@@ -190,3 +191,48 @@ def screenshot(source, timestamp, destination):
         return destination
     except subprocess.CalledProcessError as e:
         return False
+
+
+# (wip) effects - blur
+def blur_video(input_video, output_video, ffmpeg_path, combined_mask_path, areas, filter_type='median', filter_strength=5):
+    if filter_type == 'gaussian':
+        ffmpeg_filter = f"gblur=sigma={filter_strength}"
+    elif filter_type == 'box':
+        ffmpeg_filter = f"boxblur=luma_radius={filter_strength}:luma_power=1"
+    elif filter_type == 'median':
+        ffmpeg_filter = f"median={filter_strength}"
+
+    filter_complex = f"""
+    [0:v]split=2[original][toBlur];
+    [toBlur]{ffmpeg_filter}[blurred];
+    [1:v]format=gray,geq=lum='p(X,Y)':a=0[alpha];
+    [blurred][alpha]alphamerge[blurredAlpha];
+    [original][blurredAlpha]overlay[v]
+    """
+
+    command = [
+        ffmpeg_path, '-y', '-i', input_video, '-i', combined_mask_path,
+        '-filter_complex', filter_complex, '-map', '[v]', '-map', '0:a',
+        '-c:v', 'libx264', '-c:a', 'copy', '-movflags', '+faststart', output_video
+    ]
+
+    subprocess.run(command, check=True)
+
+if __name__ == "__main__":
+    input_video = "video43.mp4"
+    output_video = "output.mp4"
+    ffmpeg_path = "ffmpeg.exe"
+    masks_path = "masks/"
+    combined_mask_path = "combined_mask.png"
+    aspect_ratio = "4:3"  # or "16:9"
+    filter_type = 'median'  # choose 'gaussian', 'box', 'median'
+    filter_strength = 10
+    areas = {
+        "minimap": {"Enabled": False, "EdgeSoftness": 0},
+        "topleft": {"Enabled": False, "EdgeSoftness": 0},
+        "topright": {"Enabled": False, "EdgeSoftness": 0},
+        "killfeed": {"Enabled": True, "EdgeSoftness": 10}
+    }
+
+    combine_masks(masks_path, combined_mask_path, areas, aspect_ratio, filter_type)
+    blur_video(input_video, output_video, ffmpeg_path, combined_mask_path, areas, filter_type, filter_strength)

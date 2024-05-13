@@ -6,7 +6,9 @@
   --greydialog: #3d4149;
   --whitenot: #bcbdbf;
   --select: #eb343d93;
+  --radius: 3px;
 }
+
 
 html, body {
     font-family: 'Roboto', sans-serif;
@@ -103,7 +105,7 @@ button:focus {
     cursor: pointer;
     transition: background-color 0.3s;
     position: relative;
-    border-radius: 5px;
+    border-radius: var(--radius);
 }
 
 .btn-misc:disabled {
@@ -112,7 +114,7 @@ button:focus {
 
 .btn-misc:not(:disabled):hover {
     .svg-misc{
-        color:#ffc63d
+        color: var(--yel);
     }
 }
 
@@ -123,7 +125,7 @@ button:focus {
 	width: 43px;
     cursor: pointer;
     transition: filter 0.3s;
-    border-radius: 5px;
+    border-radius: var(--radius);
 	box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.1);
 	z-index: 4;
 }
@@ -157,7 +159,7 @@ button:focus {
     background-position: 2rem 92rem;
     margin-top: 1rem;
     padding-top: 1rem;
-    border-radius: 5px;
+    border-radius: var(--radius);
     background-color: var(--dark);
     box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
     width: 100%;
@@ -188,7 +190,7 @@ button:focus {
 }
 
 .container-controls {
-	border-radius: 5px;
+	border-radius: var(--radius);
     display: flex;
     justify-content: left;
 	overflow: hidden;
@@ -224,7 +226,7 @@ button:focus {
 
 .container-top {
     position: relative;
-    border-radius: 5px;
+    border-radius: var(--radius);
     overflow: hidden;
     display: flex;
     box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.03);
@@ -475,7 +477,6 @@ svg {
     z-index: 2;
     -webkit-appearance: none;
     background-color: transparent;
-    border-radius: 0px;
     height: 37px;
     width: 100%;
     --anchorB-percent: 0;
@@ -691,7 +692,7 @@ svg {
     padding: 5px;
     background-color: var(--grey);
     display: grid;
-    border-radius: 5px;
+    border-radius: var(--radius);
     z-index: 6;
     width: 100%;
     box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.1);
@@ -703,13 +704,13 @@ svg {
     display: flex;
     align-items: center;
     background-color: var(--dark);
-    border-radius: 5px;
+    border-radius: var(--radius);
 }
 
 .btn-dialog {
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: var(--radius);
     background-color: var(--greydialog);
     height: 37px;
     transition: background-color 0.3s;
@@ -732,7 +733,7 @@ svg {
 .input-dialog {
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: var(--radius);
     background-color: var(--greydialog);
     height: 37px;
     transition: background-color 0.3s;

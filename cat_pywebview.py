@@ -91,8 +91,6 @@ class API:
             return None
 
 
-
-
 # drag to resize
 class POINT(Structure):
     _fields_ = [("x", c_long), ("y", c_long)]
